@@ -23,7 +23,7 @@ Zawiera klasy reprezentujące dane systemu (bez logiki biznesowej).
 
 * `Blob` – zawartość pliku + hash
 * `Tree` – struktura katalogów i plików
-* `TreeEntry` – wpis w drzewie (nazwa, hash, typ)
+* `GlitObject` – wpis w drzewie (nazwa, hash, typ)
 * `Commit` – commit (parent, author, timestamp, message, treeHash)
 
 ---
