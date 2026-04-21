@@ -1,16 +1,30 @@
 package glit.model;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
+/**
+ * Class GlitObject
+ *
+ * abstract base class for model classes like Blob, Tree and Commit.
+ */
 public abstract class GlitObject{
-    //unikalny Hash licozny za pomocą SHA-1
+    /**
+     * Unique hash evaluated by SHA-1 algorithm
+     */
     protected String hash;
+
     //typ pliku(blob)(normalny = 100644, wykonywalny = 100755, link = 120000)
+    /**
+     * Type of file compatible withs UNIX specification
+     */
     protected String mode="-";
 
+    /**
+     * Hash getter
+     * @return hash of the object
+     */
     public String getHash(){return hash;}
-    public void setHash(String hash) {
-        this.hash = hash;
-    }
 
     //zwraca typ danych(blob,tree,commit)
     public abstract String getType();
@@ -23,4 +37,10 @@ public abstract class GlitObject{
     public String toString(){
         return getType()+ " " + hash;
     }
+
+    protected byte[] prepareToHash(byte[] content){
+        //dodawanie naglowka
+        byte[] header = (getType()+ " " + content.length + "\0").getBytes(StandardCharsets.UTF_8);
+        return ByteBuffer.allocate(header.length + content.length).put(header).put(content).array();
     }
+}

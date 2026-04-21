@@ -1,7 +1,5 @@
 package glit.model;
 import glit.util.HashUtils;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -30,7 +28,7 @@ public class Commit extends GlitObject{
         return "commit";
     }
 
-    public String buildCommitContent(){
+    private String buildCommitContent(){
         String content = data + "\n";
         if(parent != null){
             content += "parent " + parent.getHash() + "\n";
@@ -41,16 +39,8 @@ public class Commit extends GlitObject{
 
     private void setHash(){
         byte[] content = buildCommitContent().getBytes(StandardCharsets.UTF_8);
-        String header = "commit " + content.length + "\0";
-        try{
-            ByteArrayOutputStream finalCommitStream = new ByteArrayOutputStream();
-            finalCommitStream.write(header.getBytes(StandardCharsets.UTF_8));
-            finalCommitStream.write(content);
-            byte[] toHash = finalCommitStream.toByteArray();
-            this.hash = HashUtils.sha1(toHash);
-        }catch (IOException e){
-           System.err.println(e + "setHash() -- Commit.java");
-        }
+        byte[] toHash = prepareToHash(content);
+        this.hash = HashUtils.sha1(toHash);
     }
 
 }

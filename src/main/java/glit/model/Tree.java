@@ -29,6 +29,16 @@ public class Tree extends GlitObject {
     //update/ustawienie hasha na podstawie całej zawartości
     private void updateHash(){
         sortTree();
+        byte[] toHash = prepareToHash(produceContentFromEntries());
+        hash = HashUtils.sha1(toHash);
+    }
+    //sortowanie drzewa
+    private void sortTree(){
+        entries.sort((t,x)->(t.fileName().compareTo(x.fileName())));
+    }
+
+    //zrobienie contentu z całej listy entries
+    private byte[] produceContentFromEntries(){
         try{
             ByteArrayOutputStream entriesBaos = new ByteArrayOutputStream();
             for(TreeEntry te:entries){
@@ -36,25 +46,15 @@ public class Tree extends GlitObject {
                 entriesBaos.write(te.fileName().getBytes(StandardCharsets.UTF_8));
                 entriesBaos.write(0);
                 entriesBaos.write(HashUtils.hexStringToByteArray(te.hash()));
+                return entriesBaos.toByteArray();
             }
-
-            byte[] treeEntriesByteStream = entriesBaos.toByteArray();
-            ByteArrayOutputStream full = new ByteArrayOutputStream();
-            String header = getType()+ " " + treeEntriesByteStream.length + "\0";
-            full.write(header.getBytes(StandardCharsets.UTF_8));
-            full.write(treeEntriesByteStream);
-
-            byte[] toHash = full.toByteArray();
-            hash = HashUtils.sha1(toHash);
         }catch (IOException e){
-            System.err.println(e + "updateHash() -- Tree.java");
+            throw new RuntimeException(e + "tree content failed");
         }
 
+        return new byte[0];
     }
-    //sortowanie drzewa
-    private void sortTree(){
-        entries.sort((t,x)->(t.fileName().compareTo(x.fileName())));
-    }
+
 }
 
 record TreeEntry(String mode,String hash,String fileName){
