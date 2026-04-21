@@ -11,8 +11,9 @@ public class Blob extends GlitObject{
         this.content = content;
 
         //przygotowanie do hashowania(trzeba dodać header do hasha)
-        byte[] header = ("blob " + content.length + "\0").getBytes();
+        byte[] header = ("blob " + content.length + "\0").getBytes(StandardCharsets.UTF_8);
         byte[] toHash = ByteBuffer.allocate(header.length + content.length).put(header).put(content).array();
+        System.out.println("DEBUG Blob: header+content size = " + toHash.length);
         this.hash = HashUtils.sha1(toHash);
     }
     //zawartosc pliku
@@ -26,9 +27,5 @@ public class Blob extends GlitObject{
         return "blob";
     }
 
-    public static void main(String[] args){
-        GlitObject b = new Blob("Ala".getBytes(StandardCharsets.UTF_8));
-        System.out.println("b="+b);
-        System.out.println("TEST");
-    }
+
 }

@@ -1,6 +1,5 @@
 package glit.model;
 import glit.util.HashUtils;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -31,7 +30,7 @@ public class Commit extends GlitObject{
         return "commit";
     }
 
-    private String buildCommitContent(){
+    public String buildCommitContent(){
         String content = data + "\n";
         if(parent != null){
             content += "parent " + parent.getHash() + "\n";
@@ -54,8 +53,4 @@ public class Commit extends GlitObject{
         }
     }
 
-    public static void main(String[] args){
-        Commit c = new Commit("testowy commit",new Tree(),null);
-        System.out.println(c.buildCommitContent());
-    }
 }
