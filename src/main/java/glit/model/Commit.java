@@ -4,7 +4,16 @@ import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Class Commit
+ */
 public class Commit extends GlitObject{
+    /**
+     * Commit constructor
+     * @param message - commit message
+     * @param o - blob/tree that is added to commit
+     * @param parent - previous parent commit (if first commit parent = null)
+     */
     public Commit(String message,GlitObject o,Commit parent){
         this.parent = parent;
         this.data = o;
@@ -22,6 +31,7 @@ public class Commit extends GlitObject{
     final private String message;
     final private GlitObject data;
     final private Commit parent;
+
 
     @Override
     public String getType() {
