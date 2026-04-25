@@ -21,7 +21,7 @@ public abstract class GlitObject{
     protected String mode="-";
 
     /**
-     * Hash getter
+     *
      * @return hash of the object
      */
     public String getHash(){return hash;}
