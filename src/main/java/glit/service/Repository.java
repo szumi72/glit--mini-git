@@ -1,19 +1,31 @@
 package glit.service;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+/**
+ * Klasa odpowiedzialna za zarządzanie repozytorium Glit.
+ * Zawiera metody do inicjalizacji i lokalizacji repozytorium.
+ */
 public class Repository {
 
+    /** Ścieżka do katalogu głównego repozytorium. */
     private static Path REPOSITORY_PATH;
 
+    /**
+     * Zwraca ścieżkę do repozytorium.
+     * @return ścieżka do repozytorium
+     */
     public Path getRepositoryPath() {
         return REPOSITORY_PATH;
     }
 
+    /**
+     * Znajduje ścieżkę do najbliższego repozytorium Glit, przeszukując w górę drzewa katalogów.
+     * @return ścieżka do repozytorium lub null, jeśli nie znaleziono
+     */
     static Path whereIsRepo() {
         try {
             Path current = Paths.get(".").toRealPath();
@@ -29,7 +41,12 @@ public class Repository {
         return null;
     }
 
-    static void init() throws IOException {
+    /**
+     * Inicjalizuje nowe repozytorium Glit w bieżącym katalogu.
+     * Tworzy niezbędne katalogi i pliki.
+     * @throws IOException jeśli nie można utworzyć katalogów lub plików
+     */
+    public static void init() throws IOException {
         REPOSITORY_PATH = whereIsRepo();
         if (whereIsRepo() != null) {
             System.out.println("Glit repository in " + REPOSITORY_PATH + " is already initialized.");
@@ -39,34 +56,39 @@ public class Repository {
         REPOSITORY_PATH = Path.of(System.getProperty("user.dir"));
 
         // create dirs
-        File dirArray[] = {
-            new File(REPOSITORY_PATH + "/.glit/objects"),
-            new File(REPOSITORY_PATH + "/.glit/refs")
+        Path dirArray[] = {
+            REPOSITORY_PATH.resolve(".glit/objects"),
+            REPOSITORY_PATH.resolve(".glit/refs")
         };
-        for (File d : dirArray) {
-            if (d.mkdirs()) {
-                System.out.println("Directory ./.glit/" + d.getName() + " is created");
-            } else {
-                System.out.println("Directory ./.glit/" + d.getName() + " cannot be created");
+        for (Path d : dirArray) {
+            try {
+                Files.createDirectories(d);
+                System.out.println("Created directory ./.glit/" + d.getFileName());
+            } catch (IOException e) {
+                System.out.println("Directory ./.glit/" + d.getFileName() + " cannot be created");
+                throw e;
             }
         }
 
         // create files
-        File filesArray[] = {
-            new File("./.glit/config"),
-            new File("./.glit/HEAD"),
-            new File("./.glit/description")
+        Path fileArray[] = {
+            REPOSITORY_PATH.resolve(".glit/config"),
+            REPOSITORY_PATH.resolve(".glit/HEAD"),
+            REPOSITORY_PATH.resolve(".glit/description")
         };
-        for (File f : filesArray) {
+        for (Path f : fileArray){
             try {
-                f.createNewFile();
-            } catch (IOException ioe) {
-                System.out.println("File ./.glit/" + f.getName() + " cannot be created");
-                throw ioe;
+                Files.createFile(f);
+                System.out.println("Created file ./.glit/" + f.getFileName());
+            } catch (IOException e) {
+                System.out.println("Couldn't create "+f);
+                throw e;
             }
         }
+        
     }
 
+    
     public static void main(String[] args) throws Exception {
         init();
     }
