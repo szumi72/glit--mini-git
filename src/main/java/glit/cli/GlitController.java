@@ -5,9 +5,9 @@ import java.nio.file.Path;
 
 public class GlitController {
 
-    public static boolean parseArgs(String[] args) {
+    public static boolean validateCommandLineArgs(String[] args) {
         if (args.length < 1) {
-            System.out.println("You need to add function name. \nExample of usage: glit init");
+            System.out.println("You need to add function name. \nExample of usage: glit add <file1> <file2> ...");
             return false;
         }
         int INDEX_OF_FUNCTION = 0;
@@ -24,12 +24,11 @@ public class GlitController {
                 }
                 // czy plik istnieje, jest readable, jest katalogiem
                 for (int i = INDEX_OF_FUNCTION + 1; i < args.length; i++) {
-                    if (Files.exists(Path.of(args[i]))) {
-                        System.out.println("Cannot add. There's no file \"" + args[i] + "\"."
-                        );
+                    if (!Files.exists(Path.of(args[i]))) {
+                        System.out.println("Cannot add. There's no file \"" + args[i] + "\".");
                         return false;
                     }
-                    if (Files.isReadable(Path.of(args[i]))) {
+                    if (!Files.isReadable(Path.of(args[i]))) {
                         System.out.println("Cannot add. File \"" + args[i] + "\" is not readable.");
                         return false;
                     }
@@ -47,8 +46,9 @@ public class GlitController {
                     return false;
                 }
                 String commitName = args[INDEX_OF_FUNCTION + 1];
-                if (commitName.startsWith("\"") && commitName.endsWith("\"") && !commitName.matches(".*\\s.*")) {
-                    args[INDEX_OF_FUNCTION + 1] = commitName.substring(1, commitName.length() - 2);
+                args[INDEX_OF_FUNCTION + 1] = commitName.replaceAll("\\s+", "_");
+                if (!commitName.equals(args[INDEX_OF_FUNCTION + 1])) {
+                    System.out.println("Commit name changed to: " + args[INDEX_OF_FUNCTION + 1]);
                 }
                 return true;
             }
@@ -110,7 +110,7 @@ public class GlitController {
     }
 
     public static void main(String[] args) throws Exception {
-        if (!parseArgs(args)) {
+        if (!validateCommandLineArgs(args)) {
             return;
         }
         // Wywołaj odpowiednią metodę
@@ -121,7 +121,8 @@ public class GlitController {
             case "add" ->
                 System.out.println("add executed");
             case "commit" ->
-                System.out.println("commit executed");
+                System.out.println("commit executed -> " + args[1]);
+            // do przetestowania!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             case "checkout" ->
                 System.out.println("checkout executed");
             case "merge" ->
