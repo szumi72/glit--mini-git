@@ -1,7 +1,8 @@
-// package glit.cli;
+package glit.cli;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 public class GlitController {
 
@@ -63,22 +64,24 @@ public class GlitController {
                     System.out.println(errBlock);
                     return false;
                 }
-                /*
+
                 // aktualnie używany branch
                 String branchName = args[INDEX_OF_FUNCTION + 1];
-                if (branchName == RefManager.getActualBranch()) {
-                System.out.println("Branch " + branchName + " is currently being used");
-                return false;
+                // if (branchName.equals(RefManager.getCurrentBranch()())) {
+                if (branchName.equals("main")) {
+                    System.out.println("Branch " + branchName + " is currently being used");
+                    return false;
                 }
                 // nazwa jest w systemie
-                List<String> branchList = RefManager.getBranches();
+                // List<String> branchList = RefManager.getBranches();
+                List<String> branchList = List.of("feature", "feature/init", "feature/parse", "main");
                 if (!branchList.contains(branchName)) {
-                System.out.println("Branch \"" + branchName + "\" not found. Available branches:");
-                for (String el : branchList) {
-                System.out.print(el + " ");
+                    System.out.println("Branch \"" + branchName + "\" not found. Available branches:");
+                    for (String el : branchList) {
+                        System.out.print(el + "\t");
+                    }
                 }
-                }
-                 */
+
                 return true;
             }
             case "merge" -> {
@@ -87,18 +90,25 @@ public class GlitController {
                     System.out.println("Branch name not given. \nUsage: glit merge <branch_to_be_merged_with_your_current>");
                     return false;
                 }
-                /*
-                // nazwa jest w systemie
+                // aktualnie używany branch
                 String branchName = args[INDEX_OF_FUNCTION + 1];
-                List<String> branchList = RefManager.getBranches();
+                // if (branchName.equals(RefManager.getCurrentBranch()())) {
+                if (branchName.equals("main")) {
+                    System.out.println("Cannot merge from branch " + branchName + " - it is currently being used.");
+                    return false;
+                }
+                // nazwa jest w systemie
+                // List<String> branchList = RefManager.getBranches();
+                List<String> branchList = List.of("feature", "feature/init", "feature/parse", "main");
                 if (!branchList.contains(branchName)) {
                     System.out.println("Branch \"" + branchName + "\" not found. Available branches:");
                     for (String el : branchList) {
-                        System.out.print(el + " ");
+                        System.out.print(el + "\t");
                     }
+                    System.out.println();
                     return false;
                 }
-                 */
+
                 return true;
             }
 
@@ -115,14 +125,14 @@ public class GlitController {
         }
         // Wywołaj odpowiednią metodę
         switch (args[0]) {
-            case "init" ->
+            case "init" -> {
                 System.out.println("init executed");
-            // glit.service.Repository.init();
+                // glit.service.Repository.init();
+            }
             case "add" ->
                 System.out.println("add executed");
             case "commit" ->
                 System.out.println("commit executed -> " + args[1]);
-            // do przetestowania!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             case "checkout" ->
                 System.out.println("checkout executed");
             case "merge" ->
@@ -130,3 +140,49 @@ public class GlitController {
         }
     }
 }
+/*
+Jak jest potrzebny 1 argument to czy sprawdzać czy użytkownik nie wpisał 2+ argumentów?
+
+Co sprawdza:
+add:
+    czy podano 1+ plików
+    czy pliki istnieją
+    czy mają prawo odczytu
+    czy nie są katalogiem
+
+    do dorobienia:
+        sprawdzanie czy już nie jest śledzone -> to już chyba w samej metodzie add()
+        
+    do dyskusji;
+        czy można dodać katalog
+        czy pliki nie muszą być wykonywalne
+        obsługa symboli wieloznacznych?
+        .glitignore -> robimy go w ogóle?; na jakim etapie go obsłużyć
+        obsługa niestandardowych znaków - / + itd.
+
+commit:
+    czy jest wiadomość - jeśli tak to zmienia białe znaki na "_"
+
+    do dyskusji:
+        obsługa niestandardowych znaków - / + itd.
+
+checkout:
+    czy jest podany argument 
+    czy nie jest wpisana nazwa aktualnie używanego brancha
+    czy branch wpisany jest zapisany w liście branchy
+
+    do dorobienia:
+        w RefManager -> getCurrentBranch() oraz getBranches(); potem odkomentować i przetestować
+    
+    do dyskusji:
+        tworzenie nowych branchy - w jaki sposób? checkout -b br2 czy jakoś inaczej?
+    
+merge:
+    czy jest podany argument
+    czy wpisany branch nie jest aktualnie używany (bo mergujemy się do tego aktualnie używanego)
+    czy wpisany branch jest zapisany w liście branchy
+
+    do dorobienia:
+        to samo co w checkout
+
+ */
