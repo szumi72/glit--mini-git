@@ -1,12 +1,13 @@
 package glit.model;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import glit.util.HashUtils;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Represents a Tree object in the Glit repository.
+ * Represents ObjectReader.java Tree object in the Glit repository.
  * A tree stores information about files and subdirectories.
  */
 public class Tree extends GlitObject {
@@ -19,8 +20,41 @@ public class Tree extends GlitObject {
         updateHash();
     }
 
-    ArrayList<TreeEntry> entries;
+    public Tree(byte [] content){
+        mode = "040000";
+        entries = new ArrayList<TreeEntry>();
 
+        ByteBuffer buffer = ByteBuffer.wrap(content);
+        String entryMode;
+        String entryFileName;
+        String entryHash;
+
+        while(buffer.hasRemaining()){
+            StringBuilder modeBuilder = new StringBuilder();
+            byte b;
+            while((b=buffer.get()) != ' '){
+                modeBuilder.append((char)b);
+            }
+            entryMode = modeBuilder.toString();
+
+            StringBuilder fileNameBuilder = new StringBuilder();
+            while((b=buffer.get()) != 0){
+                fileNameBuilder.append((char)b);
+            }
+            entryFileName = fileNameBuilder.toString();
+
+            byte[] hashBytes = new byte[20];
+            buffer.get(hashBytes);
+            entryHash = HashUtils.byteArrayToHexString(hashBytes);
+            entries.add(new TreeEntry(entryMode,entryHash,entryFileName));
+        }
+
+        updateHash();
+    }
+
+    private ArrayList<TreeEntry> entries;
+
+    public ArrayList<TreeEntry> getEntries(){return entries;}
     //dodawanie elementow do drzewa
 
     /**

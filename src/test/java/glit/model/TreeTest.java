@@ -1,5 +1,11 @@
 package glit.model;
+import glit.util.HashUtils;
 import org.junit.jupiter.api.*;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TreeTest {
@@ -47,5 +53,33 @@ public class TreeTest {
         //Then
         assertEquals(t1Hash,t2Hash);
 
+    }
+
+    @Test
+    public void testTreeDeserialization() throws IOException {
+        // 1. test Data for entry (Entry)
+        String mode = "100644";
+        String fileName = "test.txt";
+        String hexHash = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+        byte[] binaryHash = HashUtils.hexStringToByteArray(hexHash);
+
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        baos.write((mode + " ").getBytes(StandardCharsets.UTF_8));
+        baos.write(fileName.getBytes(StandardCharsets.UTF_8));
+        baos.write(0);
+        baos.write(binaryHash);
+
+        byte[] treeContent = baos.toByteArray();
+
+        Tree tree = new Tree(treeContent);
+
+        assertNotNull(tree.getEntries(), "Lista entries nie powinna być nullem");
+        assertEquals(1, tree.getEntries().size(), "Powinien być dokładnie jeden wpis");
+
+        TreeEntry entry = tree.getEntries().get(0);
+        assertEquals(mode, entry.mode(), "Mode powinien się zgadzać");
+        assertEquals(fileName, entry.fileName(), "Nazwa pliku powinna się zgadzać");
+        assertEquals(hexHash, entry.hash(), "Hash hex powinien zostać poprawnie odtworzony z binarnych bajtów");
     }
 }

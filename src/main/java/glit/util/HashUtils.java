@@ -48,4 +48,8 @@ public class HashUtils{
         }
         return data;
     }
+
+    public static String byteArrayToHexString(byte [] content){
+        return java.util.HexFormat.of().formatHex(content);
+    }
 }

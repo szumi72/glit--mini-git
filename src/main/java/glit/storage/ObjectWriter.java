@@ -10,8 +10,9 @@ import java.util.zip.DeflaterOutputStream;
 
 public class ObjectWriter {
 
-    public void saveObject(Path repositoryPath,GlitObject o) throws IOException{
+    public String saveObject(Path repositoryPath,GlitObject o) throws IOException{
         save(repositoryPath,o.getHash(),o.getContentWithHeader());
+        return o.getHash();
     }
 
     private void save(Path repositoryPath,String hash,byte[] contentWithHeader)throws IOException{

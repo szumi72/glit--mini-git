@@ -2,7 +2,7 @@ package glit.model;
 import glit.util.HashUtils;
 
 /**
- * Represents a Blob object in the Glit repository.
+ * Represents ObjectReader.java Blob object in the Glit repository.
  *
  */
 public class Blob extends GlitObject{
