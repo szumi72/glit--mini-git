@@ -15,6 +15,11 @@ public class GlitController {
         String functionName = args[INDEX_OF_FUNCTION];
         switch (functionName) {
             case "init" -> {
+                // jest nazwa chociaz 1 pliku
+                if (args.length >= INDEX_OF_FUNCTION + 1) {
+                    System.out.println("Unnecessary arguments. \nUsage: glit init");
+                    return false;
+                }
                 return true;
             }
             case "add" -> {
@@ -42,11 +47,15 @@ public class GlitController {
             }
             case "commit" -> {
                 // jest wiadomosc
-                if (args.length <= INDEX_OF_FUNCTION + 1) {
-                    System.out.println("Commit name not given. \nUsage: glit commit <your_commit_name>");
+                if (args.length <= INDEX_OF_FUNCTION + 2) {
+                    System.out.println("Commit name not given. \nUsage: glit commit -m <your_commit_name>");
                     return false;
                 }
-                String commitName = args[INDEX_OF_FUNCTION + 1];
+                if (!args[INDEX_OF_FUNCTION + 1].equals("-m")) {
+                    System.out.println("Commit -m option is required. \nUsage: glit commit -m <your_commit_name>");
+                    return false;
+                }
+                String commitName = args[INDEX_OF_FUNCTION + 2];
                 args[INDEX_OF_FUNCTION + 1] = commitName.replaceAll("\\s+", "_");
                 if (!commitName.equals(args[INDEX_OF_FUNCTION + 1])) {
                     System.out.println("Commit name changed to: " + args[INDEX_OF_FUNCTION + 1]);
@@ -54,19 +63,27 @@ public class GlitController {
                 return true;
             }
             case "checkout" -> {
-                // jest wpisana nazwa brancha
+                // jest wpisana nazwa brancha lub -b nowybranch
                 if (args.length <= INDEX_OF_FUNCTION + 1) {
                     String errBlock = """
                         Branch name not given.
                         Usage: glit checkout <your_branch_name>
-                        For creating new branch use: glit branch <your_new_branch_name>
-                        """;
+                        For creating new branch use: glit checkout -b <your_new_branch_name>""";
+                    System.out.println(errBlock);
+                    return false;
+                }
+                boolean creatingNewBranch = args[INDEX_OF_FUNCTION + 1].equals("-b");
+                if (creatingNewBranch && args.length <= INDEX_OF_FUNCTION + 2) {
+                    String errBlock = """
+                        Branch name not given.
+                        Usage: glit checkout <your_branch_name>
+                        For creating new branch use: glit checkout -b <your_new_branch_name>""";
                     System.out.println(errBlock);
                     return false;
                 }
 
                 // aktualnie używany branch
-                String branchName = args[INDEX_OF_FUNCTION + 1];
+                String branchName = creatingNewBranch ? args[INDEX_OF_FUNCTION + 2] : args[INDEX_OF_FUNCTION + 1];
                 // if (branchName.equals(RefManager.getCurrentBranch()())) {
                 if (branchName.equals("main")) {
                     System.out.println("Branch " + branchName + " is currently being used");
@@ -75,8 +92,13 @@ public class GlitController {
                 // nazwa jest w systemie
                 // List<String> branchList = RefManager.getBranches();
                 List<String> branchList = List.of("feature", "feature/init", "feature/parse", "main");
-                if (!branchList.contains(branchName)) {
+                if (!creatingNewBranch && !branchList.contains(branchName)) {
                     System.out.println("Branch \"" + branchName + "\" not found. Available branches:");
+                    for (String el : branchList) {
+                        System.out.print(el + "\t");
+                    }
+                } else if (creatingNewBranch && branchList.contains(branchName)) {
+                    System.out.println("Cannot use name \"" + branchName + "\" - it has been used. Branches currently in use:");
                     for (String el : branchList) {
                         System.out.print(el + "\t");
                     }
