@@ -88,7 +88,7 @@ public class ObjectWriterTest {
             writer.saveObject(repo.getRepositoryPath(), b);
             long secondWriteTime = Files.getLastModifiedTime(expectedFile).toMillis();
 
-
+            //Then
             assertEquals(firstWriteTime, secondWriteTime, "Czasy modyfikacji powinny być identyczne!");
 
         } finally {
