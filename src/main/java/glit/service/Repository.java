@@ -124,6 +124,7 @@ public class Repository {
 
     // main only for personal tests
     public static void main(String[] args) throws Exception {
-        init();
+        System.out.println("Working");
+        // init();
     }
 }
