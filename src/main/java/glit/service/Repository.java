@@ -6,16 +6,19 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Klasa odpowiedzialna za zarządzanie repozytorium Glit.
- * Zawiera metody do inicjalizacji i lokalizacji repozytorium.
+ * Klasa odpowiedzialna za zarządzanie repozytorium Glit. Zawiera metody do
+ * inicjalizacji i lokalizacji repozytorium.
  */
 public class Repository {
 
-    /** Ścieżka do katalogu głównego repozytorium. */
+    /**
+     * Ścieżka do katalogu głównego repozytorium.
+     */
     private static Path REPOSITORY_PATH;
 
     /**
      * Zwraca ścieżkę do repozytorium.
+     *
      * @return ścieżka do repozytorium
      */
     public Path getRepositoryPath() {
@@ -23,7 +26,9 @@ public class Repository {
     }
 
     /**
-     * Znajduje ścieżkę do najbliższego repozytorium Glit, przeszukując w górę drzewa katalogów.
+     * Znajduje ścieżkę do najbliższego repozytorium Glit, przeszukując w górę
+     * drzewa katalogów.
+     *
      * @return ścieżka do repozytorium lub null, jeśli nie znaleziono
      */
     static Path whereIsRepo() {
@@ -42,8 +47,9 @@ public class Repository {
     }
 
     /**
-     * Inicjalizuje nowe repozytorium Glit w bieżącym katalogu.
-     * Tworzy niezbędne katalogi i pliki.
+     * Inicjalizuje nowe repozytorium Glit w bieżącym katalogu. Tworzy niezbędne
+     * katalogi i pliki.
+     *
      * @throws IOException jeśli nie można utworzyć katalogów lub plików
      */
     public static void init() throws IOException {
@@ -74,21 +80,49 @@ public class Repository {
         Path fileArray[] = {
             REPOSITORY_PATH.resolve(".glit/config"),
             REPOSITORY_PATH.resolve(".glit/HEAD"),
-            REPOSITORY_PATH.resolve(".glit/description")
+            REPOSITORY_PATH.resolve(".glit/description"),
+            REPOSITORY_PATH.resolve(".glit/index")
         };
-        for (Path f : fileArray){
+        for (Path f : fileArray) {
             try {
                 Files.createFile(f);
                 System.out.println("Created file ./.glit/" + f.getFileName());
             } catch (IOException e) {
-                System.out.println("Couldn't create "+f);
+                System.out.println("Couldn't create " + f);
                 throw e;
             }
         }
-        
+
     }
 
-    
+    public static void add() {
+        /*
+        // validate data if it hasn't been done before
+        // while el : args
+        // check .glitignore ?
+        // has el changed since last time?
+        // 
+        // 
+        // create blob
+        // write hash to index file
+    // while file : args 
+    // jesli w index:
+        // Kolejnosc porownywania: (funkcja stat() ???)
+        // ctime / mtime
+        // size
+        // dev + ino
+        // mode
+        // uid / gid
+        // policzenie hasha
+        // jesli te same
+            // continue
+    // 
+    // create blob
+    // nowy wpis do index / wykreslenie starego
+         */
+    }
+
+    // main only for personal tests
     public static void main(String[] args) throws Exception {
         init();
     }
