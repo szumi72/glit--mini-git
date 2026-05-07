@@ -43,4 +43,6 @@ public abstract class GlitObject{
         byte[] header = (getType()+ " " + content.length + "\0").getBytes(StandardCharsets.UTF_8);
         return ByteBuffer.allocate(header.length + content.length).put(header).put(content).array();
     }
+
+    public abstract byte[] getContentWithHeader();
 }

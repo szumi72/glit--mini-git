@@ -63,6 +63,10 @@ public class Tree extends GlitObject {
             throw new RuntimeException(e + "tree content failed");
         }
     }
+    @Override
+    public byte[] getContentWithHeader(){
+        return prepareToHash(produceContentFromEntries());
+    }
 
 }
 

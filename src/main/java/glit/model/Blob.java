@@ -34,6 +34,10 @@ public class Blob extends GlitObject{
     public String getType(){
         return "blob";
     }
+    @Override
+    public byte[] getContentWithHeader(){
+        return prepareToHash(content);
+    }
 
 
 

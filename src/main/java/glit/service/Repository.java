@@ -80,7 +80,8 @@ public class Repository {
         Path fileArray[] = {
             REPOSITORY_PATH.resolve(".glit/config"),
             REPOSITORY_PATH.resolve(".glit/HEAD"),
-            REPOSITORY_PATH.resolve(".glit/description")
+            REPOSITORY_PATH.resolve(".glit/description"),
+            REPOSITORY_PATH.resolve(".glit/index")
         };
         for (Path f : fileArray) {
             try {
@@ -94,7 +95,36 @@ public class Repository {
 
     }
 
+    public static void add() {
+        /*
+        // validate data if it hasn't been done before
+        // while el : args
+        // check .glitignore ?
+        // has el changed since last time?
+        // 
+        // 
+        // create blob
+        // write hash to index file
+    // while file : args 
+    // jesli w index:
+        // Kolejnosc porownywania: (funkcja stat() ???)
+        // ctime / mtime
+        // size
+        // dev + ino
+        // mode
+        // uid / gid
+        // policzenie hasha
+        // jesli te same
+            // continue
+    // 
+    // create blob
+    // nowy wpis do index / wykreslenie starego
+         */
+    }
+
+    // main only for personal tests
     public static void main(String[] args) throws Exception {
-        init();
+        System.out.println("Working");
+        // init();
     }
 }

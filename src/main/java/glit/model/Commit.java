@@ -53,4 +53,9 @@ public class Commit extends GlitObject{
         this.hash = HashUtils.sha1(toHash);
     }
 
+    public byte[] getContentWithHeader(){
+        byte[] content = buildCommitContent().getBytes(StandardCharsets.UTF_8);
+        return prepareToHash(content);
+    }
+
 }
