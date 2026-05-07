@@ -1,14 +1,57 @@
-package glit.cli;
+// package glit.cli;
 
+import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class GlitController {
 
+    // powloka bash-owa samodzielnie rozwija, wtedy tylko kropke potrzebujemy; dla Powershella się wykona dla *
+    // PathMatcher dopasowuje symbole wieloznaczne znane z powłoki, np. . i *
+    public static List<Path> expandWildcard(String pattern) throws IOException {
+        Path dir = Path.of(System.getProperty("user.dir"));
+        List<Path> result = new ArrayList<>();
+
+        if (pattern.equals(".")) {
+            pattern = "**";
+        }
+        PathMatcher matcher = FileSystems.getDefault()
+                .getPathMatcher("glob:" + pattern);
+
+        try (Stream<Path> stream = Files.walk(dir)) {
+            stream
+                    .filter(Files::isRegularFile)
+                    .map(dir::relativize)
+                    .filter(p -> matcher.matches(p))
+                    .forEach(result::add);
+        }
+        // } else {
+        // PathMatcher matcher = FileSystems.getDefault()
+        //         .getPathMatcher("glob:" + pattern);
+        // try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+        //     for (Path entry : stream) {
+        //         if (matcher.matches(entry.getFileName())) {
+        //             result.add(entry);
+        //         }
+        //     }
+        // }
+        // }
+        return result;
+    }
+
     public static boolean validateCommandLineArgs(String[] args) {
         if (args.length < 1) {
-            System.out.println("You need to add function name. \nExample of usage: glit add <file1> <file2> ...");
+            String s = """
+            You need to add function name.
+            Available functions:
+            init  add  commit  checkout  merge
+            Example of usage: glit <function> [OTPIONS] [ARGS...]""";
+            System.out.println(s);
             return false;
         }
         int INDEX_OF_FUNCTION = 0;
@@ -16,7 +59,7 @@ public class GlitController {
         switch (functionName) {
             case "init" -> {
                 // jest nazwa chociaz 1 pliku
-                if (args.length >= INDEX_OF_FUNCTION + 1) {
+                if (args.length > INDEX_OF_FUNCTION + 1) {
                     System.out.println("Unnecessary arguments. \nUsage: glit init");
                     return false;
                 }
@@ -38,10 +81,10 @@ public class GlitController {
                         System.out.println("Cannot add. File \"" + args[i] + "\" is not readable.");
                         return false;
                     }
-                    if (Files.isDirectory(Path.of(args[i]))) {
-                        System.out.println("Cannot add. \"" + args[i] + "\" is a directory.");
-                        return false;
-                    }
+                    // if (Files.isDirectory(Path.of(args[i]))) {
+                    //     System.out.println("Cannot add. \"" + args[i] + "\" is a directory.");
+                    //     return false;
+                    // }
                 }
                 return true;
             }
@@ -145,6 +188,11 @@ public class GlitController {
         if (!validateCommandLineArgs(args)) {
             return;
         }
+        List<Path> files = expandWildcard("*");
+        for (Path elem : files) {
+            System.out.println(elem);
+        }
+
         // Wywołaj odpowiednią metodę
         switch (args[0]) {
             case "init" -> {
