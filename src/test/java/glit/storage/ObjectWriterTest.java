@@ -42,8 +42,8 @@ public class ObjectWriterTest {
             ObjectWriter writer = new ObjectWriter();
             List<GlitObject> objects = List.of(
                     new Blob("test content".getBytes()),
-                    new Tree(), // zakładając że masz pusty konstruktor lub mocka
-                    new Commit("message", new Blob("test".getBytes()), null)
+                    new Tree(),
+                    new Commit("message", new Blob("test".getBytes()).getHash(), "")
             );
 
 

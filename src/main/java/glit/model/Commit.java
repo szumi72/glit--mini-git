@@ -11,26 +11,63 @@ public class Commit extends GlitObject{
     /**
      * Commit constructor
      * @param message - commit message
-     * @param o - blob/tree that is added to commit
-     * @param parent - previous parent commit (if first commit parent = null)
+     * @param objectHash - tree Hash that is added to commit
+     * @param parentHash - previous parent commit hash (if first commit parent = null)
      */
-    public Commit(String message,GlitObject o,Commit parent){
-        this.parent = parent;
-        this.data = o;
+    public Commit(String message,String objectHash,String parentHash){
+        this.parentHash = parentHash;
+        this.treeHash = objectHash;
         this.message = message;
         ZonedDateTime now = ZonedDateTime.now();
         timestamp = now.toEpochSecond();
         timezone = now.format(DateTimeFormatter.ofPattern("xx"));
         setHash();
     }
+
+    public Commit(byte [] content){
+        String fullContent = new String(content,StandardCharsets.UTF_8);
+
+        String[] sections = fullContent.split("\n\n", 2);
+        String headersPart = sections[0];
+        this.message = sections.length > 1 ? sections[1] : "";
+
+        String [] lines = headersPart.split("\n");
+
+        String tHash = null;
+        String pHash = null;
+        String auth = "XYZ";
+        long time = 0;
+        String zone = "";
+
+        for(String line :lines){
+            if(line.startsWith("tree ")){
+                tHash = line.substring(5);
+            } else if (line.startsWith("parent ")) {
+                pHash = line.substring(7);
+            } else if (line.startsWith("author ")) {
+                String [] parts = line.split(" ");
+                auth = parts[1];
+                time = Long.parseLong(parts[2]);
+                zone = parts[3];
+            }
+
+        }
+        this.treeHash = tHash;
+        this.parentHash = pHash;
+        this.author = auth;
+        this.timestamp = time;
+        this.timezone = zone;
+        setHash();
+    }
+
     //TODO
     //to trzeba bedzie ustawic zeby sie gdzies zapisywało i czytało z jakieg pliku
-    final private String author = "XYZ";
+    private String author = "XYZ";
     final private long timestamp;
-    final String timezone;
+    final private String timezone;
     final private String message;
-    final private GlitObject data;
-    final private Commit parent;
+    final private String treeHash;
+    final private String parentHash;
 
 
     @Override
@@ -39,12 +76,15 @@ public class Commit extends GlitObject{
     }
 
     private String buildCommitContent(){
-        String content = data + "\n";
-        if(parent != null){
-            content += "parent " + parent.getHash() + "\n";
+        StringBuilder sb = new StringBuilder();
+        sb.append("tree ").append(treeHash).append("\n");
+        if (parentHash != null) {
+            sb.append("parent ").append(parentHash).append("\n");
         }
-        content += "author " + author + " " + timestamp +" "+ timezone +"\n" + "committer " + author +" "+ timestamp +" "+ timezone + "\n\n" + message;
-        return content;
+        sb.append("author ").append(author).append(" ").append(timestamp).append(" ").append(timezone).append("\n");
+        sb.append("committer ").append(author).append(" ").append(timestamp).append(" ").append(timezone).append("\n\n");
+        sb.append(message);
+        return sb.toString();
     }
 
     private void setHash(){
@@ -58,4 +98,10 @@ public class Commit extends GlitObject{
         return prepareToHash(content);
     }
 
+    public String getMessage(){return message;}
+    public String getAuthor(){return author;}
+    public String getTimezone(){return timezone;}
+    public String getTreeHash(){return treeHash;}
+    public String getParentHash(){return parentHash;}
+    public long getTimestamp(){return timestamp;}
 }
