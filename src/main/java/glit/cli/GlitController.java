@@ -12,41 +12,27 @@ import java.util.stream.Stream;
 
 public class GlitController {
 
-    // powloka bash-owa samodzielnie rozwija, wtedy tylko kropke potrzebujemy; dla Powershella się wykona dla *
-    // PathMatcher dopasowuje symbole wieloznaczne znane z powłoki, np. . i *
+    
     public static List<Path> expandWildcard(String pattern) throws IOException {
-        System.out.println("Otrzymano pattern "+pattern);
         Path dir = Path.of(System.getProperty("user.dir"));
         List<Path> result = new ArrayList<>();
 
-        if (pattern.equals(".")) {
+        if (pattern.equals(".") || pattern.equals("./")) {
             pattern = "**";
         }
-        //TODO sprawdzic Path.of(pattern) isDirectory moze???
-        else if (pattern.equals("..")) {
-            pattern = "../**";
-        }
-        PathMatcher matcher = FileSystems.getDefault()
+        
+        try {
+            PathMatcher matcher = FileSystems.getDefault()
                 .getPathMatcher("glob:" + pattern);
+            try (Stream<Path> stream = Files.walk(dir)) {
+                stream
+                        .filter(Files::isRegularFile)
+                        .map(dir::relativize)
+                        .filter(p -> matcher.matches(p))
+                        .forEach(result::add);
+            }
+        }catch(Exception e){ System.out.println(pattern + " not recognized");}
 
-        try (Stream<Path> stream = Files.walk(dir)) {
-            stream
-                    .filter(Files::isRegularFile)
-                    .map(dir::relativize)
-                    .filter(p -> matcher.matches(p))
-                    .forEach(result::add);
-        }
-        // } else {
-        // PathMatcher matcher = FileSystems.getDefault()
-        //         .getPathMatcher("glob:" + pattern);
-        // try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
-        //     for (Path entry : stream) {
-        //         if (matcher.matches(entry.getFileName())) {
-        //             result.add(entry);
-        //         }
-        //     }
-        // }
-        // }
         return result;
     }
 
@@ -83,25 +69,24 @@ public class GlitController {
                 }
                 for (int i = INDEX_OF_FUNCTION + 1; i < args.length; i++) {
                     // flag 
-                    if(args[i].contains("-")){
+                    if (args[i].contains("-")) {
                         System.out.println("glit add doesn't have flag " + args[i]);
                         return null;
                     }
-                    // ............................................................... - kropka zas nie dziala
                     // file or files with wildcards not exists
                     Path file = Path.of(args[i]);
                     if (!Files.exists(file) || Files.isDirectory(file, LinkOption.NOFOLLOW_LINKS)) {
-                        System.out.println("Expanding wildcard... ");
+                        // System.out.println("Expanding wildcard... ");
                         List<Path> files = expandWildcard(args[i]);
-                        if(files == null || files.size()<1){
+                        if (files == null || files.size() < 1) {
                             System.out.println("Cannot find file " + args[i]);
                             return null;
-                        }else{
+                        } else {
                             arguments.add(files);
-                        }                       
-                    }else{ arguments.add(Path.of(args[i])); }
-                    
-                    // DOROBIC OBSLUGE DIRECTORY!!!!!!!!!!!!!!!!!
+                        }
+                    } else {
+                        arguments.add(Path.of(args[i]));
+                    }
                 }
                 return new Call(functionName, null, arguments);
             }
@@ -116,7 +101,7 @@ public class GlitController {
                 if (!args[INDEX_OF_FUNCTION + 1].equals("-m")) {
                     System.out.println("Commit -m option is required. \n" + usageMessage);
                     return null;
-                }else{
+                } else {
                     flags.add("m");
                 }
                 // unnecessary arguments
@@ -124,9 +109,9 @@ public class GlitController {
                     System.out.println("Unnecessary arguments. \n" + usageMessage);
                     return null;
                 }
-                // weird flag OBSLUZYC!!!!!!!!!!!!!!!!!!!!!!!!
-                if(args[INDEX_OF_FUNCTION + 2].startsWith("-")){
-                    System.out.println("glit add doesn't have flag " + args[INDEX_OF_FUNCTION + 2] + "\n" + usageMessage);
+                // weird flag
+                if (args[INDEX_OF_FUNCTION + 2].startsWith("-")) {
+                    System.out.println("glit commit doesn't have flag " + args[INDEX_OF_FUNCTION + 2] + "\n" + usageMessage);
                     return null;
                 }
                 // 
@@ -142,9 +127,9 @@ public class GlitController {
                 String usageMessage = """
                     Usage: glit checkout <branch_name>
                     For creating new branch use: glit checkout -b <new_branch_name>""";
-                
+
                 // unnecessary arguments
-                if (args.length <= INDEX_OF_FUNCTION+1) {
+                if (args.length <= INDEX_OF_FUNCTION + 1) {
                     System.out.println("Wrong number of arguments. \n" + usageMessage);
                     return null;
                 }
@@ -153,7 +138,7 @@ public class GlitController {
                     System.out.println("Wrong number of arguments. \n" + usageMessage);
                     return null;
                 }
-                
+
                 // currently used branch
                 String branchName = creatingNewBranch ? args[INDEX_OF_FUNCTION + 2] : args[INDEX_OF_FUNCTION + 1];
                 // if (branchName.equals(RefManager.getCurrentBranch()())) {
@@ -168,16 +153,18 @@ public class GlitController {
                     System.out.println("Branch \"" + branchName + "\" not found. Available branches:");
                     for (String el : branchList) {
                         System.out.print(el + "  ");
-                    }System.out.println();
+                    }
+                    System.out.println();
                     return null;
                 } else if (creatingNewBranch && branchList.contains(branchName)) {
                     System.out.println("Cannot use name \"" + branchName + "\" - it has been used. Used names: ");
                     for (String el : branchList) {
                         System.out.print(el + "  ");
-                    }System.out.println();
+                    }
+                    System.out.println();
                     return null;
                 }
-                if(creatingNewBranch){
+                if (creatingNewBranch) {
                     flags.add("b");
                     String newBranchName = args[INDEX_OF_FUNCTION + 2];
                     args[INDEX_OF_FUNCTION + 2] = newBranchName.replaceAll("\\s+", "_");
@@ -185,7 +172,7 @@ public class GlitController {
                         System.out.println("New branch's name changed to: " + args[INDEX_OF_FUNCTION + 2]);
                     }
                     arguments.add(args[INDEX_OF_FUNCTION + 2]);
-                }else{
+                } else {
                     arguments.add(args[INDEX_OF_FUNCTION + 1]);
                 }
                 return new Call(functionName, flags, arguments);
@@ -226,16 +213,13 @@ public class GlitController {
     }
 
     public static void main(String[] args) throws Exception {
-        System.out.println(expandWildcard(args[1]));
-
-        Call cliCall = validateAndParseCommandLineArgs(args);
+                Call cliCall = validateAndParseCommandLineArgs(args);
         if (cliCall == null) {
             return;
         }
-        
-        
+
         System.out.println(cliCall);
-        // Wywołaj odpowiednią metodę
+        // call proper method
         switch (cliCall.getFunction()) {
             case "init" -> {
                 System.out.println("init executed");
@@ -252,49 +236,3 @@ public class GlitController {
         }
     }
 }
-/*
-Jak jest potrzebny 1 argument to czy sprawdzać czy użytkownik nie wpisał 2+ argumentów?
-
-Co sprawdza:
-add:
-    czy podano 1+ plików
-    czy pliki istnieją
-    czy mają prawo odczytu
-    czy nie są katalogiem
-
-    do dorobienia:
-        sprawdzanie czy już nie jest śledzone -> to już chyba w samej metodzie add()
-        
-    do dyskusji;
-        czy można dodać katalog
-        czy pliki nie muszą być wykonywalne
-        obsługa symboli wieloznacznych?
-        .glitignore -> robimy go w ogóle?; na jakim etapie go obsłużyć
-        obsługa niestandardowych znaków - / + itd.
-
-commit:
-    czy jest wiadomość - jeśli tak to zmienia białe znaki na "_"
-
-    do dyskusji:
-        obsługa niestandardowych znaków - / + itd.
-
-checkout:
-    czy jest podany argument 
-    czy nie jest wpisana nazwa aktualnie używanego brancha
-    czy branch wpisany jest zapisany w liście branchy
-
-    do dorobienia:
-        w RefManager -> getCurrentBranch() oraz getBranches(); potem odkomentować i przetestować
-    
-    do dyskusji:
-        tworzenie nowych branchy - w jaki sposób? checkout -b br2 czy jakoś inaczej?
-    
-merge:
-    czy jest podany argument
-    czy wpisany branch nie jest aktualnie używany (bo mergujemy się do tego aktualnie używanego)
-    czy wpisany branch jest zapisany w liście branchy
-
-    do dorobienia:
-        to samo co w checkout
-
- */
