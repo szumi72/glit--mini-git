@@ -111,7 +111,7 @@ public class Repository {
         // ctime / mtime
         // size
         // dev + ino
-        // mode
+        // mode - trzeba sprawdzic za pierwszym razem readable/writable/executable, wiec przy parsowaniu tego nie ma
         // uid / gid
         // policzenie hasha
         // jesli te same
