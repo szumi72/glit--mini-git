@@ -4,6 +4,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
+
+import glit.cli.Call;
+
 
 /**
  * Klasa odpowiedzialna za zarządzanie repozytorium Glit. Zawiera metody do
@@ -22,6 +26,7 @@ public class Repository {
      * @return ścieżka do repozytorium
      */
     public Path getRepositoryPath() {
+        // REPOSITORY_PATH = whereIsRepo();
         return REPOSITORY_PATH;
     }
 
@@ -95,9 +100,77 @@ public class Repository {
 
     }
 
-    public static void add() {
+    private static boolean isIgnored(Path p) {
+        return false;
+    }
+
+    private static boolean isInIndex(Path p) {
+        Path indexFilePath = REPOSITORY_PATH.resolve(".glit/index");
+        return false;
+    }
+
+    private static boolean isChanged(Path file) {
+        if (!isInIndex(file)) {
+            return true;
+        }
+        try {
+            byte[] index = Files.readAllBytes(REPOSITORY_PATH.resolve(".glit/index"));
+            try {
+                BasicFileAttributes attr = Files.readAttributes(file, BasicFileAttributes.class);
+
+                System.out.println(
+                        "␣lastAccessTime:␣" + attr.lastAccessTime()
+                        + "\n␣lastModifiedTime:␣" + attr.lastModifiedTime()
+                        + "\n␣isDirectory:␣" + attr.isDirectory()
+                        + "\n␣isRegularFile:␣" + attr.isRegularFile()
+                        + "\n␣isSymbolicLink:␣" + attr.isSymbolicLink()
+                        + "\n␣size:␣" + attr.size());
+            } catch (IOException e) {
+                throw new IOException("Couldn't read attributes of file: " + file);
+            }
+
+        } catch (IOException ex) {
+            throw new Error("Couldn't read index file - aborting.");
+        }
+        String header = "DIRC"+"0002";
+        int numberOfEntries=1;
+        long ctimes=((long)1 & 0xffffffff);
+        long ctimen=((long)1 & 0xffffffff);
+        long mtimes=((long)1 & 0xffffffff);
+        long mtimen=((long)1 & 0xffffffff);
+
+        // ctime / mtime
+        // size
+        // dev + ino
+        // mode - trzeba sprawdzic za pierwszym razem readable/writable/executable, wiec przy parsowaniu tego nie ma
+        // uid / gid
+        // policzenie hasha
+        return false;
+    }
+
+
+    public static void add(Call cliCall) {
+        REPOSITORY_PATH = whereIsRepo();
+        if (REPOSITORY_PATH == null) {
+            System.out.println("Glit repository not found. To start a new one type:\nglit init");
+            return;
+        }
+        Path dir = Path.of(System.getProperty("user.dir"));
+        Path diffPath = REPOSITORY_PATH.relativize(dir);
+        System.out.println(diffPath + " " + REPOSITORY_PATH);
+        for (Object arg : cliCall.getArguments()) {
+            Path el = (Path) arg;
+            if (isIgnored(el)) {
+                continue;
+            }
+            System.out.println(el);
+            if (isChanged(el)) {
+                //createBlob;
+                // writeHash
+            }
+        }
         /*
-        // validate data if it hasn't been done before
+        
         // while el : args
         // check .glitignore ?
         // has el changed since last time?
