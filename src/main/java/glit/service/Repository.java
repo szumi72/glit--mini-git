@@ -5,9 +5,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import glit.cli.Call;
-
+import glit.model.GlitIndex;
+import glit.model.IndexEntry;
+import glit.util.IndexUtils;
 
 /**
  * Klasa odpowiedzialna za zarządzanie repozytorium Glit. Zawiera metody do
@@ -19,6 +24,7 @@ public class Repository {
      * Ścieżka do katalogu głównego repozytorium.
      */
     private static Path REPOSITORY_PATH;
+    private static Path INDEX_PATH;
 
     /**
      * Zwraca ścieżkę do repozytorium.
@@ -100,99 +106,87 @@ public class Repository {
 
     }
 
+    // --- ADD functionality ---
+
+    // TODO - .glitignore file
     private static boolean isIgnored(Path p) {
         return false;
     }
 
-    private static boolean isInIndex(Path p) {
-        Path indexFilePath = REPOSITORY_PATH.resolve(".glit/index");
-        return false;
+    private static IndexEntry findInIndex(Path file) throws IOException {
+        GlitIndex index = IndexUtils.parse(INDEX_PATH);
+        List<IndexEntry> entries = index.getEntries();
+        Optional<IndexEntry> opt = entries.stream()
+                .filter(e -> e.getPath().equals(file.toString()))
+                .findFirst();
+        IndexEntry entry = opt.orElse(null);
+        return entry;
     }
 
-    private static boolean isChanged(Path file) {
-        if (!isInIndex(file)) {
+    private static boolean isChanged(Path file) throws IOException {
+        IndexEntry entry = findInIndex(file);
+        if (entry == null) {
             return true;
         }
-        try {
-            byte[] index = Files.readAllBytes(REPOSITORY_PATH.resolve(".glit/index"));
-            try {
-                BasicFileAttributes attr = Files.readAttributes(file, BasicFileAttributes.class);
 
-                System.out.println(
-                        "␣lastAccessTime:␣" + attr.lastAccessTime()
-                        + "\n␣lastModifiedTime:␣" + attr.lastModifiedTime()
-                        + "\n␣isDirectory:␣" + attr.isDirectory()
-                        + "\n␣isRegularFile:␣" + attr.isRegularFile()
-                        + "\n␣isSymbolicLink:␣" + attr.isSymbolicLink()
-                        + "\n␣size:␣" + attr.size());
-            } catch (IOException e) {
-                throw new IOException("Couldn't read attributes of file: " + file);
-            }
+        BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
 
-        } catch (IOException ex) {
-            throw new Error("Couldn't read index file - aborting.");
-        }
-        String header = "DIRC"+"0002";
-        int numberOfEntries=1;
-        long ctimes=((long)1 & 0xffffffff);
-        long ctimen=((long)1 & 0xffffffff);
-        long mtimes=((long)1 & 0xffffffff);
-        long mtimen=((long)1 & 0xffffffff);
+        // OS independent
+        if (entry.getCtimeSec() != attrs.creationTime().to(TimeUnit.SECONDS)){return true;} 
+        if (entry.getCtimeNsec() != attrs.creationTime().to(TimeUnit.NANOSECONDS)% 1_000_000_000L){return true;} 
+        if (entry.getMtimeSec() != attrs.lastModifiedTime().to(TimeUnit.SECONDS)){return true;} 
+        if (entry.getMtimeNsec() != attrs.lastModifiedTime().to(TimeUnit.NANOSECONDS)% 1_000_000_000L){return true;} 
+        
+        // OS dependent
+        if(entry.getDev() != (long) Files.getAttribute(file, "unix:dev")){return true;}
+        if(entry.getIno() != (long) Files.getAttribute(file, "unix:ino")){return true;}
+        if(entry.getMode() != (long) Files.getAttribute(file, "unix:mode")){return true;}
+        if(entry.getUid() != (long) Files.getAttribute(file, "unix:uid")){return true;}
+        if(entry.getGid() != (long) Files.getAttribute(file, "unix:gid")){return true;}
 
-        // ctime / mtime
-        // size
-        // dev + ino
-        // mode - trzeba sprawdzic za pierwszym razem readable/writable/executable, wiec przy parsowaniu tego nie ma
-        // uid / gid
-        // policzenie hasha
+        // OS independent
+        if (entry.getFileSize() != attrs.size()){return true;} 
+
+        // hash?
+               
         return false;
+        
     }
 
-
-    public static void add(Call cliCall) {
+    public static void add(Call cliCall) throws IOException {
         REPOSITORY_PATH = whereIsRepo();
+
         if (REPOSITORY_PATH == null) {
             System.out.println("Glit repository not found. To start a new one type:\nglit init");
             return;
         }
+        INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
         Path dir = Path.of(System.getProperty("user.dir"));
-        Path diffPath = REPOSITORY_PATH.relativize(dir);
-        System.out.println(diffPath + " " + REPOSITORY_PATH);
+        Path diffPath = REPOSITORY_PATH.relativize(dir); // -> przerzucic do parsowania argumentow!!!!!!!!!!!
+        // System.out.println(diffPath + " " + REPOSITORY_PATH);
+
+        boolean isAnyChanged = false;
         for (Object arg : cliCall.getArguments()) {
             Path el = (Path) arg;
             if (isIgnored(el)) {
                 continue;
             }
-            System.out.println(el);
+            // System.out.println(el);
             if (isChanged(el)) {
-                //createBlob;
-                // writeHash
+                // index.arguments.pop(el) - na koniec zostana te niewywolane
+                // createBlob;
+                // new IndexEntry
+                // GlitIndex.list.append
+                isAnyChanged = true;
             }
-        }
-        /*
+            
         
-        // while el : args
-        // check .glitignore ?
-        // has el changed since last time?
-        // 
-        // 
-        // create blob
-        // write hash to index file
-    // while file : args 
-    // jesli w index:
-        // Kolejnosc porownywania: (funkcja stat() ???)
-        // ctime / mtime
-        // size
-        // dev + ino
-        // mode - trzeba sprawdzic za pierwszym razem readable/writable/executable, wiec przy parsowaniu tego nie ma
-        // uid / gid
-        // policzenie hasha
-        // jesli te same
-            // continue
-    // 
-    // create blob
-    // nowy wpis do index / wykreslenie starego
-         */
+        }
+        if(isAnyChanged)
+        // GlitIndex.write
+
+
+        
     }
 
     // main only for personal tests

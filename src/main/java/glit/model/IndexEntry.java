@@ -72,4 +72,53 @@ public class IndexEntry {
             buffer.put((byte) 0);
         }
     }
+
+    public long getCtimeSec() {
+        return ctimeSec;
+    }
+
+    public long getCtimeNsec() {
+        return ctimeNsec;
+    }
+
+    public long getMtimeSec() {
+        return mtimeSec;
+    }
+
+    public long getMtimeNsec() {
+        return mtimeNsec;
+    }
+
+    public long getDev() {
+        return dev;
+    }
+
+    public long getIno() {
+        return ino;
+    }
+
+    public int getMode() {
+        return mode;
+    }
+
+    public int getUid() {
+        return uid;
+    }
+
+    public int getGid() {
+        return gid;
+    }
+
+    public long getFileSize() {
+        return fileSize;
+    }
+
+    public byte[] getObjectId() {
+        return objectId;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
 }
