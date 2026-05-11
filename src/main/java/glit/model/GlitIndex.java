@@ -1,12 +1,13 @@
 package glit.model;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class GlitIndex {
 
     private final int version;
-    private final List<IndexEntry> entries;
-    private final byte[] checksum;
+    private List<IndexEntry> entries;
+    private byte[] checksum;
 
     public GlitIndex(int version, List<IndexEntry> entries, byte[] checksum) {
         this.version = version;
@@ -17,6 +18,12 @@ public class GlitIndex {
     public GlitIndex(int version, List<IndexEntry> entries) {
         this.version = version;
         this.entries = entries;
+        checksum = null;
+    }
+
+    public GlitIndex(int version){
+        this.version = version;
+        entries = new ArrayList<>();
         checksum = null;
     }
 
@@ -31,4 +38,14 @@ public class GlitIndex {
     public byte[] getChecksum() {
         return checksum;
     }
+
+    public boolean add(IndexEntry e) {
+        return entries.add(e);
+    }
+
+    public void setChecksum(byte[] checksum) {
+        this.checksum = checksum;
+    }
+
+
 }

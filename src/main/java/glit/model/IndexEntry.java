@@ -1,6 +1,11 @@
 package glit.model;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.concurrent.TimeUnit;
 
 public class IndexEntry {
 
@@ -34,6 +39,22 @@ public class IndexEntry {
         this.objectId = objectId;
         // this.flags = flags;
         this.path = path;
+    }
+
+    public IndexEntry(Path path, byte[] hash) throws IOException {
+        BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+        this.ctimeSec = attrs.creationTime().to(TimeUnit.SECONDS);
+        this.ctimeNsec = attrs.creationTime().to(TimeUnit.NANOSECONDS);
+        this.mtimeSec = attrs.lastModifiedTime().to(TimeUnit.SECONDS);
+        this.mtimeNsec = attrs.lastModifiedTime().to(TimeUnit.NANOSECONDS);
+        this.dev = (long) Files.getAttribute(path, "unix:dev");
+        this.ino = (long) Files.getAttribute(path, "unix:ino");
+        this.mode = (int) Files.getAttribute(path, "unix:mode");
+        this.uid = (int) Files.getAttribute(path, "unix:uid");
+        this.gid = (int) Files.getAttribute(path, "unix:gid");
+        this.fileSize = 0;
+        this.objectId = hash;
+        this.path = path.toString();
     }
 
     public void write(ByteBuffer buffer) {
