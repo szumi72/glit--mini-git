@@ -6,6 +6,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.TimeUnit;
+import java.nio.channels.FileChannel;
+import java.nio.file.StandardOpenOption;
+import java.nio.ByteOrder;
+import glit.storage.ObjectWriter;
+
 
 public class IndexEntry {
 
@@ -140,6 +145,20 @@ public class IndexEntry {
 
     public String getPath() {
         return path;
+    }
+
+    public static IndexEntry createFromPath(Path path, Path repositoryPath) throws IOException {
+        IndexEntry entry = null;
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+            ByteBuffer buffer = ByteBuffer.allocate((int) channel.size());
+            buffer.order(ByteOrder.BIG_ENDIAN);
+            channel.read(buffer);
+            GlitObject o = new Blob(buffer.array());
+            ObjectWriter writer = new ObjectWriter();
+            String hash = writer.saveObject(repositoryPath, o);
+            entry = new IndexEntry(path, hash.getBytes());
+        }catch(IOException e){throw new IOException("Couldn't create Blob from "+path);}
+        return entry;
     }
 
 }

@@ -1,9 +1,6 @@
 package glit.service;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -15,9 +12,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import glit.cli.Call;
-import glit.model.Blob;
 import glit.model.GlitIndex;
-import glit.model.GlitObject;
 import glit.model.IndexEntry;
 import glit.storage.ObjectWriter;
 import glit.util.IndexUtils;
@@ -185,56 +180,63 @@ public class Repository {
             System.out.println("Glit repository not found. To start a new one type:\nglit init");
             return;
         }
-        INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
+
         Path dir = Path.of(System.getProperty("user.dir"));
         Path diffPath = REPOSITORY_PATH.relativize(dir); // -> przerzucic do parsowania argumentow!!!!!!!!!!!
         // System.out.println(diffPath + " " + REPOSITORY_PATH);
 
-        boolean isAnyChanged = false;
-        GlitIndex currIndex = IndexUtils.parse(INDEX_PATH);
-        List<IndexEntry> entries = currIndex.getEntries();
-
+        INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
+        boolean indexExists = Files.exists(INDEX_PATH) && Files.size(INDEX_PATH) > 0;
         GlitIndex newIndex = new GlitIndex(0); // using version 0 of Glit
         ObjectWriter writer = new ObjectWriter();
-        for (Object el : cliCall.getArguments()) {
-            Path arg = (Path) el;
-            if (isIgnored(arg)) {
-                continue;
-            }
-            // System.out.println(el);
-            if (isChanged(currIndex, arg)) {
-                entries.stream()
-                        .filter(e -> e.getPath().equals(arg.toString()))
-                        .forEach(entries::remove);
-                // index.arguments.pop(el) - na koniec zostana te niewywolane
+        if (indexExists) {
+            boolean isAnyChanged = false;
+            GlitIndex currIndex = IndexUtils.parse(INDEX_PATH);
+            List<IndexEntry> entries = currIndex.getEntries();
 
-                try (FileChannel channel = FileChannel.open(arg, StandardOpenOption.READ)) {
-                    ByteBuffer buffer = ByteBuffer.allocate((int) channel.size());
-                    buffer.order(ByteOrder.BIG_ENDIAN);
-                    channel.read(buffer);
-                    GlitObject o = new Blob(buffer.array());
-                    String hash = writer.saveObject(REPOSITORY_PATH, o);
-                    IndexEntry entry = new IndexEntry(arg, hash.getBytes());
-                    newIndex.add(entry);
+            for (Object el : cliCall.getArguments()) {
+                Path arg = (Path) el;
+                if (isIgnored(arg)) {
+                    continue;
                 }
-                // createBlob;
-                // new IndexEntry
-                // GlitIndex.list.append
-                isAnyChanged = true;
+                // System.out.println(el);
+                if (isChanged(currIndex, arg)) {
+                    entries.stream()
+                            .filter(e -> e.getPath().equals(arg.toString()))
+                            .forEach(entries::remove);
+                    // index.arguments.pop(el) - na koniec zostana te niewywolane
+
+                    newIndex.add(IndexEntry.createFromPath(arg, REPOSITORY_PATH));
+                    isAnyChanged = true;
+
+                }
+            }
+            if (!isAnyChanged) {
+                System.out.println("Nothing was added - all files has been already staged.");
+                return;
+            }
+        } else {
+
+            Files.write(INDEX_PATH, new byte[0], StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+
+            for (Object el : cliCall.getArguments()) {
+                Path arg = (Path) el;
+                if (isIgnored(arg)) {
+                    continue;
+                }
+                // System.out.println(el);
+                newIndex.add(IndexEntry.createFromPath(arg, REPOSITORY_PATH));
+
             }
 
-        }
-        if (!isAnyChanged) {
-            System.out.println("Nothing was added - all files has been already staged.");
-            return;
-        }
-        try {
-            IndexUtils.write(newIndex, INDEX_PATH);
-        } catch (NoSuchAlgorithmException e) {
-            System.out.println(e);
-        }
+            try {
+                IndexUtils.write(newIndex, INDEX_PATH);
+            } catch (NoSuchAlgorithmException e) {
+                System.out.println(e);
+            }
 
-        // co z usunietymi plikami? -> chyba przy commit się stworzy nowy GlitIndex, w którym ich nie będzie
+            // co z usunietymi plikami? -> chyba przy commit się stworzy nowy GlitIndex, w którym ich nie będzie
+        }
     }
 
     // main only for personal tests

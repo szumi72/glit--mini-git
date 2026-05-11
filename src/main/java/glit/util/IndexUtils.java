@@ -46,6 +46,7 @@ public class IndexUtils {
                 throw new NoSuchAlgorithmException("SHA-1 not found");
             }
         }
+        // System.out.println("Checksum length(): "+checksum.length);
         buffer.put(checksum);
 
         // --- ZAPIS DO PLIKU ---
