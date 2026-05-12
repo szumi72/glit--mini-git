@@ -1,6 +1,7 @@
 package glit.model;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class GlitIndex {
@@ -45,6 +46,10 @@ public class GlitIndex {
 
     public void setChecksum(byte[] checksum) {
         this.checksum = checksum;
+    }
+
+    public boolean addAll(Collection<? extends IndexEntry> c) {
+        return entries.addAll(c);
     }
 
 

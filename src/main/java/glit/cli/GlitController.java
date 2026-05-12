@@ -9,22 +9,26 @@ import java.nio.file.PathMatcher;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
+
 import glit.service.Repository;
 
 public class GlitController {
 
-    
     public static List<Path> expandWildcard(String pattern) throws IOException {
         Path dir = Path.of(System.getProperty("user.dir"));
         List<Path> result = new ArrayList<>();
 
+        if(Files.isDirectory(Path.of(pattern), LinkOption.NOFOLLOW_LINKS)){
+            pattern = pattern + "/**";
+        }
+
         if (pattern.equals(".") || pattern.equals("./")) {
             pattern = "**";
         }
-        
+
         try {
             PathMatcher matcher = FileSystems.getDefault()
-                .getPathMatcher("glob:" + pattern);
+                    .getPathMatcher("glob:" + pattern);
             try (Stream<Path> stream = Files.walk(dir)) {
                 stream
                         .filter(Files::isRegularFile)
@@ -32,7 +36,9 @@ public class GlitController {
                         .filter(p -> matcher.matches(p))
                         .forEach(result::add);
             }
-        }catch(Exception e){ System.out.println(pattern + " not recognized");}
+        } catch (Exception e) {
+            System.out.println(pattern + " not recognized");
+        }
 
         return result;
     }
@@ -43,7 +49,7 @@ public class GlitController {
             You need to add function name.
             Available functions:
             init  add  commit  checkout  merge
-            Example of usage: glit <function> [FLAGS] [ARGS...]""";
+            Usage: glit <function> [FLAGS] [ARGS...]""";
             System.out.println(s);
             return null;
         }
@@ -76,7 +82,7 @@ public class GlitController {
                     }
                     // file or files with wildcards not exists
                     Path file = Path.of(args[i]);
-                    if (!Files.exists(file) || Files.isDirectory(file, LinkOption.NOFOLLOW_LINKS)) {
+                    if (Files.isDirectory(file, LinkOption.NOFOLLOW_LINKS) || !Files.exists(file)) {
                         // System.out.println("Expanding wildcard... ");
                         List<Path> files = expandWildcard(args[i]);
                         if (files == null || files.size() < 1) {
@@ -86,7 +92,7 @@ public class GlitController {
                             arguments.addAll(files);
                         }
                     } else {
-                        arguments.add(Path.of(args[i]));
+                        arguments.add(file);
                     }
                 }
                 return new Call(functionName, null, arguments);
@@ -214,7 +220,7 @@ public class GlitController {
     }
 
     public static void main(String[] args) throws Exception {
-                Call cliCall = validateAndParseCommandLineArgs(args);
+        Call cliCall = validateAndParseCommandLineArgs(args);
         if (cliCall == null) {
             return;
         }
@@ -226,9 +232,10 @@ public class GlitController {
                 System.out.println("executing init... \n");
                 Repository.init();
             }
-            case "add" ->{
+            case "add" -> {
                 System.out.println("executing add... \n");
-                Repository.add(cliCall);}
+                Repository.add(cliCall);
+            }
             case "commit" ->
                 System.out.println("commit executed");
             case "checkout" ->

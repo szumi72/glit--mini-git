@@ -14,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 import glit.cli.Call;
 import glit.model.GlitIndex;
 import glit.model.IndexEntry;
-import glit.storage.ObjectWriter;
 import glit.util.IndexUtils;
 
 /**
@@ -26,7 +25,8 @@ public class Repository {
     /**
      * Ścieżka do katalogu głównego repozytorium.
      */
-    private static Path REPOSITORY_PATH;
+    public static Path REPOSITORY_PATH;
+    public static Path DIFF_PATH;
     private static Path INDEX_PATH;
 
     /**
@@ -45,7 +45,7 @@ public class Repository {
      *
      * @return ścieżka do repozytorium lub null, jeśli nie znaleziono
      */
-    static Path whereIsRepo() {
+    public static Path whereIsRepo() {
         try {
             Path current = Paths.get(".").toRealPath();
             while (current != null) {
@@ -118,7 +118,7 @@ public class Repository {
     private static IndexEntry findInIndex(GlitIndex index, Path file) throws IOException {
         List<IndexEntry> entries = index.getEntries();
         Optional<IndexEntry> opt = entries.stream()
-                .filter(e -> e.getPath().equals(file.toString()))
+                .filter(e -> e.getPath().equals(DIFF_PATH.resolve(file).toString()))
                 .findFirst();
         IndexEntry entry = opt.orElse(null);
         return entry;
@@ -127,6 +127,7 @@ public class Repository {
     private static boolean isChanged(GlitIndex index, Path file) throws IOException {
         IndexEntry entry = findInIndex(index, file);
         if (entry == null) {
+            System.out.println("findInIndex zwrocilo null");
             return true;
         }
 
@@ -134,61 +135,75 @@ public class Repository {
 
         // OS independent
         if (entry.getCtimeSec() != attrs.creationTime().to(TimeUnit.SECONDS)) {
+            System.out.println("ctimes");
             return true;
         }
         if (entry.getCtimeNsec() != attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L) {
+            System.out.println("ctimen - origin: " + entry.getCtimeNsec() + " from index: " + attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L);
             return true;
         }
         if (entry.getMtimeSec() != attrs.lastModifiedTime().to(TimeUnit.SECONDS)) {
+            System.out.println("mtimes");
             return true;
         }
         if (entry.getMtimeNsec() != attrs.lastModifiedTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L) {
+            System.out.println("mtimen");
             return true;
         }
 
         // OS dependent
         if (entry.getDev() != (long) Files.getAttribute(file, "unix:dev")) {
+            System.out.println("dev");
             return true;
         }
         if (entry.getIno() != (long) Files.getAttribute(file, "unix:ino")) {
+            System.out.println("ino");
             return true;
         }
-        if (entry.getMode() != (long) Files.getAttribute(file, "unix:mode")) {
+        if (entry.getMode() != (int) Files.getAttribute(file, "unix:mode")) {
+            System.out.println("mode");
             return true;
         }
-        if (entry.getUid() != (long) Files.getAttribute(file, "unix:uid")) {
+        if (entry.getUid() != (int) Files.getAttribute(file, "unix:uid")) {
+            System.out.println("uid");
             return true;
         }
-        if (entry.getGid() != (long) Files.getAttribute(file, "unix:gid")) {
+        if (entry.getGid() != (int) Files.getAttribute(file, "unix:gid")) {
+            System.out.println("gid");
             return true;
         }
 
         // OS independent
         if (entry.getFileSize() != attrs.size()) {
+            System.out.println("size: "+entry.getFileSize()+"     "+attrs.size());
             return true;
         }
 
         // hash?
+        // System.out.println("else");
         return false;
 
     }
 
     public static void add(Call cliCall) throws IOException {
         REPOSITORY_PATH = whereIsRepo();
+        if(REPOSITORY_PATH == null){
+            System.out.println("Glit repository not found. To start a new one type:\nglit init");
+            return;
+        }
+        DIFF_PATH=REPOSITORY_PATH.relativize(Path.of(System.getProperty("user.dir")));
+        System.out.println("diff path: "+DIFF_PATH);
 
         if (REPOSITORY_PATH == null) {
             System.out.println("Glit repository not found. To start a new one type:\nglit init");
             return;
         }
 
-        Path dir = Path.of(System.getProperty("user.dir"));
-        Path diffPath = REPOSITORY_PATH.relativize(dir); // -> przerzucic do parsowania argumentow!!!!!!!!!!!
-        // System.out.println(diffPath + " " + REPOSITORY_PATH);
-
         INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
         boolean indexExists = Files.exists(INDEX_PATH) && Files.size(INDEX_PATH) > 0;
+        System.out.println("indexExists: " + indexExists);
         GlitIndex newIndex = new GlitIndex(0); // using version 0 of Glit
-        ObjectWriter writer = new ObjectWriter();
+        // ObjectWriter writer = new ObjectWriter();
         if (indexExists) {
             boolean isAnyChanged = false;
             GlitIndex currIndex = IndexUtils.parse(INDEX_PATH);
@@ -199,12 +214,12 @@ public class Repository {
                 if (isIgnored(arg)) {
                     continue;
                 }
-                // System.out.println(el);
+                System.out.println("Przetwarzam: " + el);
                 if (isChanged(currIndex, arg)) {
+                    System.out.println(arg + " is changed");
                     entries.stream()
                             .filter(e -> e.getPath().equals(arg.toString()))
                             .forEach(entries::remove);
-                    // index.arguments.pop(el) - na koniec zostana te niewywolane
 
                     newIndex.add(IndexEntry.createFromPath(arg, REPOSITORY_PATH));
                     isAnyChanged = true;
@@ -212,8 +227,15 @@ public class Repository {
                 }
             }
             if (!isAnyChanged) {
-                System.out.println("Nothing was added - all files has been already staged.");
+                System.out.println("Nothing was added - all files have been already staged.");
                 return;
+            } else {
+                newIndex.addAll(entries);
+                try {
+                    IndexUtils.write(newIndex, INDEX_PATH);
+                } catch (NoSuchAlgorithmException e) {
+                    System.out.println(e);
+                }
             }
         } else {
 

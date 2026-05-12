@@ -2,15 +2,17 @@ package glit.model;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.concurrent.TimeUnit;
-import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
-import java.nio.ByteOrder;
-import glit.storage.ObjectWriter;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
+import glit.service.Repository;
+import glit.storage.ObjectWriter;
 
 public class IndexEntry {
 
@@ -44,6 +46,8 @@ public class IndexEntry {
         this.objectId = objectId;
         // this.flags = flags;
         this.path = path;
+        // this.path = Repository.DIFF_PATH.resolve(path).toString();
+        System.out.println("Paths from IndexEntry(path, hash): " + this.path + "   " + path);
     }
 
     public IndexEntry(Path path, byte[] hash) throws IOException {
@@ -57,17 +61,19 @@ public class IndexEntry {
         this.mode = (int) Files.getAttribute(path, "unix:mode");
         this.uid = (int) Files.getAttribute(path, "unix:uid");
         this.gid = (int) Files.getAttribute(path, "unix:gid");
-        this.fileSize = 0;
+        this.fileSize = attrs.size();
         this.objectId = hash;
-        this.path = path.toString();
+        this.path = Repository.DIFF_PATH.resolve(path).toString();
+        System.out.println("Paths from IndexEntry(path, hash): " + this.path + "   " + path);
     }
 
     public void write(ByteBuffer buffer) {
         // --- PODSTAWOWE POLA ---
         buffer.putInt((int) ctimeSec);
-        buffer.putInt((int) ctimeNsec);
+        buffer.putInt((int) (ctimeNsec % 1_000_000_000L));
+        // System.out.println("(int) ctimeNsec: "+((int) (ctimeNsec % 1_000_000_000L))+"   "+ ctimeNsec% 1_000_000_000L);
         buffer.putInt((int) mtimeSec);
-        buffer.putInt((int) mtimeNsec);
+        buffer.putInt((int) (mtimeNsec % 1_000_000_000L));
 
         buffer.putInt((int) dev);
         buffer.putInt((int) ino);
@@ -76,22 +82,23 @@ public class IndexEntry {
         buffer.putInt(uid);
         buffer.putInt(gid);
         buffer.putInt((int) fileSize);
+        System.out.println("(int) fileSize: " + (int) fileSize + "   " + fileSize);
 
         // --- HASH BLOBA ---
         buffer.put(objectId);
 
         // // --- FLAGS ---
         // buffer.putShort((short) flags);
-
         // --- PATH ---
         byte[] pathBytes = path.getBytes();
+        System.out.println("Zapisuje path: " + Arrays.toString(pathBytes) + "    "+path);
         buffer.put(pathBytes);
         buffer.put((byte) 0); // null terminator
 
         // padding up to 8 bytes
-        // 60 = 4*10 (ctime,mtime,dev,ino,mode,uid,gid,size) + 20 (hash)
+        // 60 = 4*10 (ctime,mtime,dev,ino,mode,uid,gid,size) + 40 (hash)
         // 1 - null terminator from path
-        int entryLength = 60 + pathBytes.length + 1;
+        int entryLength = 80 + pathBytes.length + 1;
         int padding = (8 - (entryLength % 8)) % 8;
 
         for (int i = 0; i < padding; i++) {
@@ -148,6 +155,10 @@ public class IndexEntry {
     }
 
     public static IndexEntry createFromPath(Path path, Path repositoryPath) throws IOException {
+        // System.out.println(path + "   " + repositoryPath);
+        // Path dir = Path.of(System.getProperty("user.dir"));
+        // Path diffpath = repositoryPath.relativize(Path.of(System.getProperty("user.dir"))).resolve(path);
+        // System.out.println(path);
         IndexEntry entry = null;
         try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
             ByteBuffer buffer = ByteBuffer.allocate((int) channel.size());
@@ -157,7 +168,10 @@ public class IndexEntry {
             ObjectWriter writer = new ObjectWriter();
             String hash = writer.saveObject(repositoryPath, o);
             entry = new IndexEntry(path, hash.getBytes());
-        }catch(IOException e){throw new IOException("Couldn't create Blob from "+path);}
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new IOException("Couldn't create Blob from " + path);
+        }
         return entry;
     }
 

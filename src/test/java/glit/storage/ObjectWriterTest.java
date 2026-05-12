@@ -1,15 +1,20 @@
 package glit.storage;
-import glit.service.Repository;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import glit.model.*;
 import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import glit.model.Blob;
+import glit.model.Commit;
+import glit.model.GlitObject;
+import glit.model.Tree;
+import glit.service.Repository;
 
 
 /**

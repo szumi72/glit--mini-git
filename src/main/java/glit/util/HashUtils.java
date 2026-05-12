@@ -1,5 +1,4 @@
 package glit.util;
-import glit.model.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -24,6 +23,7 @@ public class HashUtils{
             for(byte b:mes){
                 hashString.append(String.format("%02x",b & 0xff));
             }
+            System.out.println("Długość byte[] hashString z HashUtils: "+hashString.toString().getBytes().length);
             return hashString.toString();
 
         }catch (NoSuchAlgorithmException e){

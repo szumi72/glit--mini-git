@@ -23,9 +23,9 @@ public class IndexUtils {
         buffer.order(ByteOrder.BIG_ENDIAN);
 
         // --- HEADER ---
-        buffer.put("DIRC".getBytes());   // sygnatura
-        buffer.putInt(index.getVersion());        // wersja indexu (2 lub 3)
-        buffer.putInt(entries.size());   // liczba wpisów
+        buffer.put("DIRC".getBytes());   
+        buffer.putInt(index.getVersion());        
+        buffer.putInt(entries.size());   
 
         // --- ENTRIES ---
         for (IndexEntry e : entries) {
@@ -42,6 +42,7 @@ public class IndexUtils {
             try {
                 MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
                 checksum = sha1.digest(content);
+                System.out.println("Dlugosc checksum: " + checksum.length);
             } catch (NoSuchAlgorithmException e) {
                 throw new NoSuchAlgorithmException("SHA-1 not found");
             }
@@ -95,7 +96,7 @@ public class IndexUtils {
             //     buffer.position(buffer.position() + size);
             // }
             // --- FINAL CHECKSUM ---
-            byte[] checksum = new byte[20];
+            byte[] checksum = new byte[20]; //20
 
             buffer.get(checksum);
 
@@ -117,9 +118,10 @@ public class IndexUtils {
         int uid = buffer.getInt();
         int gid = buffer.getInt();
         long fileSize = buffer.getInt() & 0xffffffffL;
+        // System.out.println(fileSize );
 
         // TODO - check compatibility with HashUtils
-        byte[] objectId = new byte[20];
+        byte[] objectId = new byte[40]; // maybe 20 if possible
         buffer.get(objectId);
 
         // int flags = buffer.getShort() & 0xffff;
@@ -132,9 +134,9 @@ public class IndexUtils {
         }
 
         // padding up to 8 bytes
-        // 60 = 4*10 (ctime,mtime,dev,ino,mode,uid,gid,size) + 20 (hash)
+        // 60 = 4*10 (ctime,mtime,dev,ino,mode,uid,gid,size) + 40 (hash)
         // 1 - null terminator from path
-        int entryLength = 60 + path.length() + 1;
+        int entryLength = 80 + path.length() + 1;
         int padding = (8 - (entryLength % 8)) % 8;
 
         buffer.position(buffer.position() + padding);
