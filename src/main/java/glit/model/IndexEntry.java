@@ -154,8 +154,8 @@ public class IndexEntry {
             buffer.order(ByteOrder.BIG_ENDIAN);
             channel.read(buffer);
             GlitObject o = new Blob(buffer.array());
-            ObjectWriter writer = new ObjectWriter();
-            String hash = writer.saveObject(repositoryPath, o);
+            ObjectWriter writer = new ObjectWriter(repositoryPath);
+            String hash = writer.saveObject(o);
             entry = new IndexEntry(path, hash.getBytes());
         }catch(IOException e){throw new IOException("Couldn't create Blob from "+path);}
         return entry;

@@ -12,7 +12,7 @@ public class ObjectWriter {
 
     private final Path repositoryPath;
 
-    ObjectWriter(Path repositoryPath)throws IOException{
+    public ObjectWriter(Path repositoryPath)throws IOException{
         this.repositoryPath = repositoryPath;
         if(repositoryPath == null){
             throw new IOException("Cannot find glit repository!");

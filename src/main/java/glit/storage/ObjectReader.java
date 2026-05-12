@@ -16,7 +16,7 @@ public class ObjectReader {
 
     private final Path repositoryPath;
 
-    ObjectReader(Path repositoryPath)throws IOException{
+    public ObjectReader(Path repositoryPath)throws IOException{
         this.repositoryPath = repositoryPath;
         if(repositoryPath == null){
             throw new IOException("Cannot find glit repository!");

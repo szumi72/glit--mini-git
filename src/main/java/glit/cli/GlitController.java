@@ -1,6 +1,7 @@
 package glit.cli;
 
 import java.io.IOException;
+import java.io.Writer;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -10,6 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 import glit.service.Repository;
+import glit.storage.ObjectReader;
+import glit.storage.ObjectWriter;
 
 public class GlitController {
 
@@ -238,6 +241,11 @@ public class GlitController {
                 System.out.println("checkout executed");
             case "merge" ->
                 System.out.println("merge executed");
+            case "cat-file" ->{
+                System.out.println("cat-file executed");
+                Repository.catFile(cliCall);
+            }
         }
     }
 }
+
