@@ -108,4 +108,5 @@ CLI → Service → Storage → Model
 * Storage zajmuje się plikami
 * Model przechowuje dane
 
-
+## !!! Problem Y2038
+Problem Y2038 - używany jest 32-bitowy timestamp, podobnie do GIT-a, który "wystarczy" do 2038 roku. Należy wdrożyć rozwiązania podjęte globalnie, np. przejść na 64-bitowy timestamp.

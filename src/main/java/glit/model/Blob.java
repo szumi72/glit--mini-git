@@ -19,6 +19,8 @@ public class Blob extends GlitObject{
         //przygotowanie do hashowania(trzeba dodać header do hasha)
         byte[] toHash = prepareToHash(content);
         this.hash = HashUtils.sha1(toHash);
+
+        // System.out.println("Dlugosc hasha: " + hash.length());
     }
     //zawartosc pliku
     private final byte[] content;
