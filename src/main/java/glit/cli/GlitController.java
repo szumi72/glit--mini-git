@@ -9,6 +9,7 @@ import java.nio.file.PathMatcher;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
+import glit.service.Repository;
 
 public class GlitController {
 
@@ -82,7 +83,7 @@ public class GlitController {
                             System.out.println("Cannot find file " + args[i]);
                             return null;
                         } else {
-                            arguments.add(files);
+                            arguments.addAll(files);
                         }
                     } else {
                         arguments.add(Path.of(args[i]));
@@ -222,11 +223,12 @@ public class GlitController {
         // call proper method
         switch (cliCall.getFunction()) {
             case "init" -> {
-                System.out.println("init executed");
-                // glit.service.Repository.init();
+                System.out.println("executing init... \n");
+                Repository.init();
             }
-            case "add" ->
-                System.out.println("add executed");
+            case "add" ->{
+                System.out.println("executing add... \n");
+                Repository.add(cliCall);}
             case "commit" ->
                 System.out.println("commit executed");
             case "checkout" ->

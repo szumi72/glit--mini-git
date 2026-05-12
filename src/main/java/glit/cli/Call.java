@@ -11,18 +11,28 @@ public class Call {
 
     public Call(String fx, List<String> fl, List<Object> args) {
         function = fx;
-        flags = fl==null ? new ArrayList<String>() : new ArrayList<String>(fl);
-        arguments = args==null ? new ArrayList<Object>() : new ArrayList<Object>(args);
+        flags = fl == null ? new ArrayList<>() : new ArrayList<>(fl);
+        arguments = args == null ? new ArrayList<>() : new ArrayList<>(args);
     }
 
     public String getFunction() {
         return function;
     }
-    public String toString(){
+
+    public List<Object> getArguments() {
+        return arguments;
+    }
+
+    @Override
+    public String toString() {
         String temp = function + "; flags{ ";
-        for(String el : flags){ temp += el + " "; }
+        for (String el : flags) {
+            temp += el + " ";
+        }
         temp += "}; arguments{ ";
-        for(Object el : arguments){ temp += el + " "; }
+        for (Object el : arguments) {
+            temp += el + " ";
+        }
         temp += "}";
         return temp;
     }

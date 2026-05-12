@@ -4,6 +4,18 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.security.NoSuchAlgorithmException;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+import glit.cli.Call;
+import glit.model.GlitIndex;
+import glit.model.IndexEntry;
+import glit.storage.ObjectWriter;
+import glit.util.IndexUtils;
 
 /**
  * Klasa odpowiedzialna za zarządzanie repozytorium Glit. Zawiera metody do
@@ -15,6 +27,7 @@ public class Repository {
      * Ścieżka do katalogu głównego repozytorium.
      */
     private static Path REPOSITORY_PATH;
+    private static Path INDEX_PATH;
 
     /**
      * Zwraca ścieżkę do repozytorium.
@@ -22,6 +35,7 @@ public class Repository {
      * @return ścieżka do repozytorium
      */
     public Path getRepositoryPath() {
+        // REPOSITORY_PATH = whereIsRepo();
         return REPOSITORY_PATH;
     }
 
@@ -95,31 +109,134 @@ public class Repository {
 
     }
 
-    public static void add() {
-        /*
-        // validate data if it hasn't been done before
-        // while el : args
-        // check .glitignore ?
-        // has el changed since last time?
-        // 
-        // 
-        // create blob
-        // write hash to index file
-    // while file : args 
-    // jesli w index:
-        // Kolejnosc porownywania: (funkcja stat() ???)
-        // ctime / mtime
-        // size
-        // dev + ino
-        // mode - trzeba sprawdzic za pierwszym razem readable/writable/executable, wiec przy parsowaniu tego nie ma
-        // uid / gid
-        // policzenie hasha
-        // jesli te same
-            // continue
-    // 
-    // create blob
-    // nowy wpis do index / wykreslenie starego
-         */
+    // --- ADD functionality ---
+    // TODO - .glitignore file
+    private static boolean isIgnored(Path p) {
+        return false;
+    }
+
+    private static IndexEntry findInIndex(GlitIndex index, Path file) throws IOException {
+        List<IndexEntry> entries = index.getEntries();
+        Optional<IndexEntry> opt = entries.stream()
+                .filter(e -> e.getPath().equals(file.toString()))
+                .findFirst();
+        IndexEntry entry = opt.orElse(null);
+        return entry;
+    }
+
+    private static boolean isChanged(GlitIndex index, Path file) throws IOException {
+        IndexEntry entry = findInIndex(index, file);
+        if (entry == null) {
+            return true;
+        }
+
+        BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
+
+        // OS independent
+        if (entry.getCtimeSec() != attrs.creationTime().to(TimeUnit.SECONDS)) {
+            return true;
+        }
+        if (entry.getCtimeNsec() != attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L) {
+            return true;
+        }
+        if (entry.getMtimeSec() != attrs.lastModifiedTime().to(TimeUnit.SECONDS)) {
+            return true;
+        }
+        if (entry.getMtimeNsec() != attrs.lastModifiedTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L) {
+            return true;
+        }
+
+        // OS dependent
+        if (entry.getDev() != (long) Files.getAttribute(file, "unix:dev")) {
+            return true;
+        }
+        if (entry.getIno() != (long) Files.getAttribute(file, "unix:ino")) {
+            return true;
+        }
+        if (entry.getMode() != (long) Files.getAttribute(file, "unix:mode")) {
+            return true;
+        }
+        if (entry.getUid() != (long) Files.getAttribute(file, "unix:uid")) {
+            return true;
+        }
+        if (entry.getGid() != (long) Files.getAttribute(file, "unix:gid")) {
+            return true;
+        }
+
+        // OS independent
+        if (entry.getFileSize() != attrs.size()) {
+            return true;
+        }
+
+        // hash?
+        return false;
+
+    }
+
+    public static void add(Call cliCall) throws IOException {
+        REPOSITORY_PATH = whereIsRepo();
+
+        if (REPOSITORY_PATH == null) {
+            System.out.println("Glit repository not found. To start a new one type:\nglit init");
+            return;
+        }
+
+        Path dir = Path.of(System.getProperty("user.dir"));
+        Path diffPath = REPOSITORY_PATH.relativize(dir); // -> przerzucic do parsowania argumentow!!!!!!!!!!!
+        // System.out.println(diffPath + " " + REPOSITORY_PATH);
+
+        INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
+        boolean indexExists = Files.exists(INDEX_PATH) && Files.size(INDEX_PATH) > 0;
+        GlitIndex newIndex = new GlitIndex(0); // using version 0 of Glit
+        ObjectWriter writer = new ObjectWriter();
+        if (indexExists) {
+            boolean isAnyChanged = false;
+            GlitIndex currIndex = IndexUtils.parse(INDEX_PATH);
+            List<IndexEntry> entries = currIndex.getEntries();
+
+            for (Object el : cliCall.getArguments()) {
+                Path arg = (Path) el;
+                if (isIgnored(arg)) {
+                    continue;
+                }
+                // System.out.println(el);
+                if (isChanged(currIndex, arg)) {
+                    entries.stream()
+                            .filter(e -> e.getPath().equals(arg.toString()))
+                            .forEach(entries::remove);
+                    // index.arguments.pop(el) - na koniec zostana te niewywolane
+
+                    newIndex.add(IndexEntry.createFromPath(arg, REPOSITORY_PATH));
+                    isAnyChanged = true;
+
+                }
+            }
+            if (!isAnyChanged) {
+                System.out.println("Nothing was added - all files has been already staged.");
+                return;
+            }
+        } else {
+
+            Files.write(INDEX_PATH, new byte[0], StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+
+            for (Object el : cliCall.getArguments()) {
+                Path arg = (Path) el;
+                if (isIgnored(arg)) {
+                    continue;
+                }
+                // System.out.println(el);
+                newIndex.add(IndexEntry.createFromPath(arg, REPOSITORY_PATH));
+
+            }
+
+            try {
+                IndexUtils.write(newIndex, INDEX_PATH);
+            } catch (NoSuchAlgorithmException e) {
+                System.out.println(e);
+            }
+
+            // co z usunietymi plikami? -> chyba przy commit się stworzy nowy GlitIndex, w którym ich nie będzie
+        }
     }
 
     // main only for personal tests
