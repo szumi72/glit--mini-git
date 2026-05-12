@@ -209,6 +209,12 @@ public class GlitController {
                 return new Call(functionName, null, arguments);
             }
             case "cat-file" -> {
+                if (args.length < INDEX_OF_FUNCTION + 2) {
+                    System.out.println("Hash not given. \nUsage: glit cat-file <hash>");
+                    return null;
+                }
+                //arguments
+                arguments.add(args[INDEX_OF_FUNCTION + 1]);
                 return new Call(functionName,null,arguments);
             }
 
