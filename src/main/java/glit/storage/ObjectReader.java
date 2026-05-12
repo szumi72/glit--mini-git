@@ -13,11 +13,17 @@ import java.nio.file.Path;
 import java.util.zip.InflaterInputStream;
 
 public class ObjectReader {
-    public GlitObject readObject(Path repositoryPath,String hash) throws IOException{
 
+    private final Path repositoryPath;
+
+    ObjectReader(Path repositoryPath)throws IOException{
+        this.repositoryPath = repositoryPath;
         if(repositoryPath == null){
             throw new IOException("Cannot find glit repository!");
         }
+    }
+
+    public GlitObject readObject(String hash){
 
         String dirName = hash.substring(0,2);
         String fileName = hash.substring(2);

@@ -204,6 +204,9 @@ public class GlitController {
                 arguments.add(branchName);
                 return new Call(functionName, null, arguments);
             }
+            case "cat-file" -> {
+                return new Call(functionName,null,arguments);
+            }
 
             default -> {
                 System.out.println("Glit doesn't have a function called " + functionName + ".");

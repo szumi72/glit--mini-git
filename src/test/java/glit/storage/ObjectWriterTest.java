@@ -39,7 +39,7 @@ public class ObjectWriterTest {
             // Given
             Repository.init();
             Repository repo = new Repository();
-            ObjectWriter writer = new ObjectWriter();
+            ObjectWriter writer = new ObjectWriter(tempDir);
             List<GlitObject> objects = List.of(
                     new Blob("test content".getBytes()),
                     new Tree(),
@@ -49,7 +49,7 @@ public class ObjectWriterTest {
 
             //When
             for (GlitObject obj : objects) {
-                writer.saveObject(repo.getRepositoryPath(), obj);
+                writer.saveObject(obj);
                 Path path = getObjectPath(tempDir, obj.getHash());
                 //Then
                 assertTrue(Files.exists(path), "Obiekt typu " + obj.getClass().getSimpleName() + " nie został zapisany!");
@@ -73,19 +73,19 @@ public class ObjectWriterTest {
             //Given
             Repository.init();
             Repository repo = new Repository();
-            ObjectWriter writer = new ObjectWriter();
+            ObjectWriter writer = new ObjectWriter(tempDir);
 
             Blob b = new Blob("test".getBytes());
             Path expectedFile = getObjectPath(tempDir,b.getHash());
 
 
-            writer.saveObject(repo.getRepositoryPath(), b);
+            writer.saveObject(b);
             long firstWriteTime = Files.getLastModifiedTime(expectedFile).toMillis();
 
             //When
             Thread.sleep(50);
 
-            writer.saveObject(repo.getRepositoryPath(), b);
+            writer.saveObject(b);
             long secondWriteTime = Files.getLastModifiedTime(expectedFile).toMillis();
 
             //Then
@@ -101,11 +101,9 @@ public class ObjectWriterTest {
      */
     @Test
     public void testSaveWithoutRepository() {
-        ObjectWriter writer = new ObjectWriter();
-        Blob b = new Blob("test".getBytes());
 
         assertThrows(IOException.class, () -> {
-            writer.saveObject(null, b);
+            ObjectWriter writer = new ObjectWriter(null);
         }, "Should throw IOException when repository path is missing");
     }
 }

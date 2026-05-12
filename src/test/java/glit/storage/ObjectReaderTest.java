@@ -26,15 +26,15 @@ public class ObjectReaderTest{
         byte[] content = mes.getBytes(StandardCharsets.UTF_8);
         Blob b = new Blob(content);
 
-        ObjectWriter writer = new ObjectWriter();
-        ObjectReader reader = new ObjectReader();
+        ObjectWriter writer = new ObjectWriter(tempDir);
+        ObjectReader reader = new ObjectReader(tempDir);
 
         Path objectsPath = tempDir.resolve(".glit/objects");
         Files.createDirectories(objectsPath);
 
         // When
-        String hash = writer.saveObject(tempDir, b);
-        GlitObject resultBlob = reader.readObject(tempDir, hash);
+        String hash = writer.saveObject(b);
+        GlitObject resultBlob = reader.readObject(hash);
 
         // Then
         assertTrue(resultBlob instanceof Blob, "Odczytany obiekt powinien być Blobem");

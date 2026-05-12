@@ -10,16 +10,21 @@ import java.util.zip.DeflaterOutputStream;
 
 public class ObjectWriter {
 
-    public String saveObject(Path repositoryPath,GlitObject o) throws IOException{
-        save(repositoryPath,o.getHash(),o.getContentWithHeader());
-        return o.getHash();
-    }
+    private final Path repositoryPath;
 
-    private void save(Path repositoryPath,String hash,byte[] contentWithHeader)throws IOException{
-
+    ObjectWriter(Path repositoryPath)throws IOException{
+        this.repositoryPath = repositoryPath;
         if(repositoryPath == null){
             throw new IOException("Cannot find glit repository!");
         }
+    }
+
+    public String saveObject(GlitObject o) throws IOException{
+        save(o.getHash(),o.getContentWithHeader());
+        return o.getHash();
+    }
+
+    private void save(String hash,byte[] contentWithHeader)throws IOException{
 
         String dirName = hash.substring(0,2);
         String fileName = hash.substring(2);
