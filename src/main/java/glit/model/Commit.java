@@ -97,6 +97,11 @@ public class Commit extends GlitObject{
         byte[] content = buildCommitContent().getBytes(StandardCharsets.UTF_8);
         return prepareToHash(content);
     }
+    @Override
+    public void printContent(){
+        String contentString = buildCommitContent();
+        System.out.print(contentString);
+    }
 
     public String getMessage(){return message;}
     public String getAuthor(){return author;}

@@ -242,7 +242,7 @@ public class Repository {
     }
 
     public static void catFile(Call cliCall){
-
+        REPOSITORY_PATH = whereIsRepo();
         if(cliCall.getArguments().size()!=1){
             System.err.println("Błąd: cat-file wymaga dokładnie jednego argumentu (hash).");
             return;
@@ -252,10 +252,10 @@ public class Repository {
             String hash = cliCall.getArguments().get(0).toString();
             GlitObject obj = reader.readObject(hash);
             if(obj!=null){
-                System.out.println(obj);
+                obj.printContent();
             }
         }catch (IOException | IndexOutOfBoundsException e) {
-            System.err.println("cat-file err" + e);
+            System.err.println("cat-file err " + e);
         }
     }
 

@@ -44,5 +44,7 @@ public abstract class GlitObject{
         return ByteBuffer.allocate(header.length + content.length).put(header).put(content).array();
     }
 
+    public abstract void printContent();
+
     public abstract byte[] getContentWithHeader();
 }

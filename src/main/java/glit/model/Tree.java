@@ -102,6 +102,13 @@ public class Tree extends GlitObject {
         return prepareToHash(produceContentFromEntries());
     }
 
+    @Override
+    public void printContent(){
+       for(TreeEntry te:entries){
+           System.out.println(te);
+       }
+    }
+
 }
 
 /**
