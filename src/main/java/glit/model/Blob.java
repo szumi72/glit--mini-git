@@ -1,6 +1,8 @@
 package glit.model;
 import glit.util.HashUtils;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * Represents ObjectReader.java Blob object in the Glit repository.
  *
@@ -40,7 +42,11 @@ public class Blob extends GlitObject{
     public byte[] getContentWithHeader(){
         return prepareToHash(content);
     }
-
+    @Override
+    public void printContent(){
+        String contentString = new String(this.content, StandardCharsets.UTF_8);
+        System.out.print(contentString);
+    }
 
 
 }

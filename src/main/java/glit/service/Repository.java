@@ -13,7 +13,9 @@ import java.util.concurrent.TimeUnit;
 
 import glit.cli.Call;
 import glit.model.GlitIndex;
+import glit.model.GlitObject;
 import glit.model.IndexEntry;
+import glit.storage.ObjectReader;
 import glit.storage.ObjectWriter;
 import glit.util.IndexUtils;
 
@@ -188,7 +190,7 @@ public class Repository {
         INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
         boolean indexExists = Files.exists(INDEX_PATH) && Files.size(INDEX_PATH) > 0;
         GlitIndex newIndex = new GlitIndex(0); // using version 0 of Glit
-        ObjectWriter writer = new ObjectWriter();
+        ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
         if (indexExists) {
             boolean isAnyChanged = false;
             GlitIndex currIndex = IndexUtils.parse(INDEX_PATH);
@@ -239,9 +241,28 @@ public class Repository {
         }
     }
 
+    public static void catFile(Call cliCall){
+        REPOSITORY_PATH = whereIsRepo();
+        if(cliCall.getArguments().size()!=1){
+            System.err.println("Błąd: cat-file wymaga dokładnie jednego argumentu (hash).");
+            return;
+        }
+        try {
+            ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+            String hash = cliCall.getArguments().get(0).toString();
+            GlitObject obj = reader.readObject(hash);
+            if(obj!=null){
+                obj.printContent();
+            }
+        }catch (IOException | IndexOutOfBoundsException e) {
+            System.err.println("cat-file err " + e);
+        }
+    }
+
     // main only for personal tests
     public static void main(String[] args) throws Exception {
         System.out.println("Working");
         // init();
+
     }
 }
