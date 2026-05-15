@@ -1,20 +1,17 @@
 package glit.service;
 
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.NoSuchAlgorithmException;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import glit.cli.Call;
-import glit.model.GlitIndex;
-import glit.model.GlitObject;
-import glit.model.IndexEntry;
+import glit.model.*;
 import glit.storage.ObjectReader;
 import glit.storage.ObjectWriter;
 import glit.util.IndexUtils;
@@ -259,10 +256,174 @@ public class Repository {
         }
     }
 
-    // main only for personal tests
+    //----Glit Status------//
+    public static void status(Call cliCall){
+        //przypisanie sciezki do repo
+        REPOSITORY_PATH = whereIsRepo();
+        if (REPOSITORY_PATH == null) return;
+
+        INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
+        Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
+
+        Map<String,String> indexMap = mapIndexFiles(INDEX_PATH);
+
+        //moze byc null jak nie było jeszcze commita wtedy wszystko do new idzie
+        //String commitHashHead = getLastCommitHash(headPath);
+
+        //////////////to dodałam nie wiem czy tak zostawiać zamiast tej linijki wyżej
+        Path actualRefPath = getPathFromHead(headPath);
+
+        String commitHashHead = "";
+        if (actualRefPath != null && Files.exists(actualRefPath)) {
+            commitHashHead = getLastCommitHash(actualRefPath).trim();
+        }
+        //////////////////////////
+
+
+
+        //TODO wyswietlanie odpowiedniej gałęzi
+        System.out.println("On branch ... ");
+        System.out.println("Changes to be commited");
+        if(commitHashHead.isEmpty()){
+            //jezeli commit jest pusty to wszsytko jest wypisywane jako nowe pliki
+            for(String path:indexMap.keySet()){
+                System.out.println("new file:\t"+path);
+            }
+        }else{
+
+
+            Tree headTree = getHEADTree(commitHashHead);
+            Map<String,String> headMap = mapHeadFiles(headTree,"");
+            StringBuilder output = new StringBuilder();
+            for(String path:indexMap.keySet()){
+                if(!headMap.containsKey(path)){
+                    //"\n" działa na linuxach a na windowsach nie koniecznie
+                    output.append("new file: ").append(path).append("\n");
+
+                }else{
+                    if(!headMap.get(path).equals(indexMap.get(path))){
+                        output.append("modified: ").append(path).append("\n");
+                    }
+                }
+            }
+            for(String path:headMap.keySet()){
+                if(!indexMap.containsKey(path)){
+                    output.append("deleted: ").append(path).append("\n");
+                }
+            }
+        }
+
+
+        //TODO dokonczyc tu reszte
+        //trzeba teraz porównać wartosci z index z tymi z head i odpowiednio wypisac
+        //obsluzyc to że head jest pusty bo to bedzie pierwszt commit
+
+
+
+
+    }
+
+
+    private static String getLastCommitHash(Path commitPath){
+        try {
+            return Files.readString(commitPath);
+        }catch (IOException e){
+            throw new RuntimeException("Can't read commit from path");
+        }
+    }
+
+    private static Path getPathFromHead(Path headPath){
+        if (!Files.exists(headPath)) return null;
+        try{
+            String temp= Files.readString(headPath).trim();
+            String lastCommitPath;
+            if(temp.startsWith("ref: ")){
+                lastCommitPath = temp.split(" ")[1];
+            }else{
+                lastCommitPath = temp;
+            }
+            Path commitPath = REPOSITORY_PATH.resolve(".glit").resolve(lastCommitPath);
+            return commitPath;
+        }catch (IOException e){
+            throw new RuntimeException("Nie udało się odczytać pliku HEAD");
+        }
+    }
+
+
+    private static Tree getHEADTree(String HeadCommitHash){
+        try{
+            ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+            Object commit = reader.readObject(HeadCommitHash);
+            if(commit instanceof Commit commit1){
+                String treeHash = commit1.getTreeHash();
+                Object tree = reader.readObject(treeHash);
+                return (Tree)tree;
+            }else{
+                throw new RuntimeException("HEAD has bad syntax");
+            }
+
+        }catch (IOException e){
+            throw new RuntimeException("Repository path not found");
+        }
+    }
+
+    private static Map<String,String> mapIndexFiles(Path indexPath){
+        try{
+            GlitIndex index = IndexUtils.parse(INDEX_PATH);
+            List<IndexEntry> indexEntries = index.getEntries();
+            Map<String,String> indexMap = new HashMap<>();
+            for(IndexEntry entry: indexEntries){
+                String hash = new String(entry.getObjectId());
+                indexMap.put(entry.getPath(),hash);
+            }
+            return indexMap;
+
+        }catch (IOException e){
+            throw new RuntimeException("Index not found");
+        }
+
+    }
+
+    private static Map<String,String > mapHeadFiles(Tree headTree,String prefix){
+        Map<String,String > headMap = new HashMap<>();
+        if(headTree==null){
+            return headMap;
+        }
+        List<TreeEntry> treeEntries = headTree.getEntries();
+
+        for(TreeEntry entry:treeEntries){
+            String currentPath = prefix.isEmpty() ? entry.fileName() : prefix + "/" + entry.fileName();
+            //mode bloba
+            if(entry.mode().equals("100644")){
+                String hash = entry.hash();
+                headMap.put(currentPath,hash);
+            }else{
+                Map<String,String> tempMap = new HashMap<>();
+                String newPath = currentPath + "/" + entry.fileName();
+                try {
+                    ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+                    GlitObject object = reader.readObject(entry.hash());
+                    if (object instanceof Tree subTree) {
+                        headMap.putAll(mapHeadFiles(subTree, currentPath));
+                    }
+                }catch (IOException e){
+                    throw new RuntimeException("cannot read object");
+                }
+            }
+
+        }
+
+        return  headMap;
+    }
+
+    //---------glit status----------//
+
+     //main only for personal tests
     public static void main(String[] args) throws Exception {
         System.out.println("Working");
         // init();
 
     }
+
+
 }
