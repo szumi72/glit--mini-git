@@ -7,7 +7,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.NoSuchAlgorithmException;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -534,59 +533,13 @@ public class Repository {
     //---------glit status----------//
 
      //main only for personal tests
-    // public static void main(String[] args) throws Exception {
-    //     System.out.println("Working");
-    //     // init();
+    public static void main(String[] args) throws Exception {
+        System.out.println("Working");
+        // init();
 
-    // }
-
-    public static void main(String[] args) {
-        try {
-            // 1. Przygotowanie czystego środowiska w aktualnym katalogu
-            Path currentDir = Path.of(System.getProperty("user.dir"));
-            Path glitDir = currentDir.resolve(".glit");
-            
-            // Czyścimy stare pliki testowe jeśli istniały
-            Files.deleteIfExists(glitDir.resolve("index"));
-            Files.deleteIfExists(glitDir.resolve("HEAD"));
-            if (Files.exists(glitDir)) {
-                Files.walk(glitDir).sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
-            }
-            Files.createDirectories(glitDir);
-
-            // 2. Tworzenie pliku HEAD (Brak commitów -> pusta referencja)
-            Files.writeString(glitDir.resolve("HEAD"), "ref: refs/heads/main\n");
-
-            // 3. Tworzenie fizycznych plików na dysku
-            Path file1 = currentDir.resolve("dodany_do_indexu.txt");
-            Path file2 = currentDir.resolve("nieisledzony_plik.txt");
-            Path file3 = currentDir.resolve("zmodyfikowany_na_dysku.txt");
-
-            Files.writeString(file1, "Zawartość pliku pierwszego");
-            Files.writeString(file2, "Zawartość nieśledzona");
-            Files.writeString(file3, "Pierwotna zawartość");
-
-            System.out.println("=== ŚRODOWISKO UTWORZONE ===");
-            System.out.println("1. Stworzono plik: " + file1.getFileName());
-            System.out.println("2. Stworzono plik: " + file2.getFileName());
-            System.out.println("3. Stworzono plik: " + file3.getFileName());
-            
-            // 4. RĘCZNA SYMULACJA 'GLIT ADD' (Skoro nie testujemy tu metody add, wpiszemy dane bezpośrednio)
-            // Tworzymy sztuczną mapę indeksu, którą zapiszemy (lub przekażemy)
-            // Na potrzeby testu statusu, zasymulujemy, że plik1 i plik3 są w indeksie
-            System.out.println("\n[Symulacja] Robimy 'glit add' dla dodany_do_indexu.txt oraz zmodyfikowany_na_dysku.txt...");
-            
-            // UWAGA: Aby program działał w pełni bez błędu z plikiem indeksu, 
-            // najlepiej po prostu odpalić Waszą metodę add(call) w tym miejscu!
-            // Jeśli chcesz przetestować sam status "na sucho", Twoje mapy załatwią sprawę.
-            
-            System.out.println("\n=== URUCHAMIAMY: glit status ===");
-            status(null);
-
-        } catch (IOException e) {
-            System.err.println("Błąd przygotowania testu: " + e.getMessage());
-        }
     }
+
+    
 
 
 }
