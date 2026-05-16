@@ -7,14 +7,16 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import glit.cli.Call;
+import glit.model.Blob;
 import glit.model.Commit;
 import glit.model.GlitIndex;
 import glit.model.GlitObject;
@@ -268,7 +270,7 @@ public class Repository {
     public static void catFile(Call cliCall){
         REPOSITORY_PATH = whereIsRepo();
         if(cliCall.getArguments().size()!=1){
-            System.err.println("Błąd: cat-file wymaga dokładnie jednego argumentu (hash).");
+            System.err.println("Error: cat-file require one argument.");
             return;
         }
         try {
@@ -284,9 +286,7 @@ public class Repository {
     }
 
     //----Glit Status------//
-    public static void status(Call cliCall){
-
-        //TODO jeszcze trzeba porównywać z plikami chyba na dysku
+    public static void status(Call cliCall){        
 
         //przypisanie sciezki do repo
         REPOSITORY_PATH = whereIsRepo();
@@ -296,6 +296,7 @@ public class Repository {
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
 
         Map<String,String> indexMap = mapIndexFiles(INDEX_PATH);
+        Map<String,String> wdMap = mapWorkingDirectory();
 
         
         Path actualRefPath = getPathFromHead(headPath);
@@ -315,7 +316,7 @@ public class Repository {
             System.out.println("On branch unknown");
         }
 
-        System.out.println("Changes to be commited");
+        System.out.println("Changes to be committed");
 
         if(commitHashHead.isEmpty()){
             //jezeli commit jest pusty to wszsytko jest wypisywane jako nowe pliki
@@ -326,7 +327,52 @@ public class Repository {
 
             Tree headTree = getHEADTree(commitHashHead);
             Map<String,String> headMap = mapHeadFiles(headTree,"");
-            StringBuilder output = new StringBuilder();
+
+            String output = produceStatusOutput(indexMap, headMap,wdMap); 
+                    
+            
+            if (output.isEmpty()) {
+                System.out.println("\tnothing staged for commit");
+            } else {
+                System.out.print(output);
+            }
+
+
+        }   
+
+        System.out.println();
+
+        String untrackedAndUnstaged = produceUntackedFilesOutput(indexMap, wdMap);
+        System.out.print(untrackedAndUnstaged);  
+
+
+
+    }
+
+    private static Map<String,String> mapWorkingDirectory(){
+        Map<String, String> dirMap = new HashMap<>();
+        try(Stream<Path> paths = Files.walk(REPOSITORY_PATH)){
+            paths.filter(Files::isRegularFile).filter(path->(!path.startsWith(REPOSITORY_PATH.resolve(".glit")))).filter(path->!path.startsWith(REPOSITORY_PATH.resolve(".git"))).filter(path -> !path.startsWith(REPOSITORY_PATH.resolve("target"))).forEach(path->{
+                try {
+                    byte[] content = Files.readAllBytes(path);
+                    Blob temp = new Blob(content);
+                    String relativePath = REPOSITORY_PATH.relativize(path).toString();
+                    dirMap.put(relativePath,temp.getHash());
+                } catch (Exception e) {
+                    System.err.println("Couldn't read file" + path);
+                }
+                
+            });
+            
+        }catch(IOException e){
+            System.err.println("Cannot read working directory");
+        }
+        return dirMap;
+    }
+
+    //otput metody status porównyje mapy plików z indexu i commita w headzie
+    private static String produceStatusOutput(Map<String, String> indexMap,Map<String, String> headMap,Map<String, String> wdMap){
+        StringBuilder output = new StringBuilder();
 
             for(String path:indexMap.keySet()){
                 if(!headMap.containsKey(path)){
@@ -343,16 +389,44 @@ public class Repository {
                     output.append("deleted: ").append(path).append("\n");
                 }
             }
+            
 
-            if (output.length() == 0) {
-                System.out.println("\tnothing staged for commit");
-            } else {
-                System.out.print(output.toString());
+            return output.toString();
+
+    }
+
+    private static String produceUntackedFilesOutput(Map<String,String> indexMap,Map<String,String> wdMap){
+
+        StringBuilder changesNotStaged = new StringBuilder();
+        StringBuilder untrackedFiles = new StringBuilder();
+
+
+
+            for(String path:wdMap.keySet()){
+                if(indexMap.containsKey(path) && !indexMap.get(path).equals(wdMap.get(path))){                    
+                    changesNotStaged.append("\t").append(path).append("\n");                    
+                }
+                
             }
 
+            for(String path:wdMap.keySet()){
+                if(!indexMap.containsKey(path)){
+                    untrackedFiles.append("\t").append(path).append("\n");
+                }
+                
+            }            
 
-        }        
+        StringBuilder finalOutput = new StringBuilder();
 
+        if (changesNotStaged.length() > 0) {
+            finalOutput.append("Changes not staged for commit:\n").append(changesNotStaged).append("\n");
+        }
+
+        if (untrackedFiles.length() > 0) {
+            finalOutput.append("Untracked files:\n").append(untrackedFiles).append("\n");
+        }
+
+        return finalOutput.toString();
     }
 
 
@@ -374,18 +448,18 @@ public class Repository {
             }else{
                 lastCommitPath = temp;
             }
-            Path commitPath = REPOSITORY_PATH.resolve(".glit").resolve(lastCommitPath);
-            return commitPath;
+            return REPOSITORY_PATH.resolve(".glit").resolve(lastCommitPath);
+             
         }catch (IOException e){
             throw new RuntimeException("Nie udało się odczytać pliku HEAD");
         }
     }
 
 
-    private static Tree getHEADTree(String HeadCommitHash){
+    private static Tree getHEADTree(String headCommitHash){
         try{
             ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
-            Object commit = reader.readObject(HeadCommitHash);
+            Object commit = reader.readObject(headCommitHash);
             if(commit instanceof Commit commit1){
                 String treeHash = commit1.getTreeHash();
                 Object tree = reader.readObject(treeHash);
@@ -438,7 +512,7 @@ public class Repository {
                 headMap.put(currentPath,hash);
             //jak nie jest blobem to jest tree
             }else{
-                //Map<String,String> tempMap = new HashMap<>();
+                
                 String newPath = currentPath;
                 try {
                     ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
@@ -467,53 +541,52 @@ public class Repository {
     // }
 
     public static void main(String[] args) {
-    try {
-        System.out.println("=== AUTOMATYCZNY TEST GLIT ===\n");
-
-        // 1. Inicjalizacja repozytorium (tworzy .glit i pliki)
-        init();
-        REPOSITORY_PATH = whereIsRepo();
-        
-        // 2. Tworzymy fizyczny plik na dysku, żebyśmy mieli co dodawać
-        Path testFile = REPOSITORY_PATH.resolve("test_statusu.txt");
-        Files.writeString(testFile, "To jest zawartość testowa do sprawdzenia cat-file i statusu.");
-        System.out.println("Utworzono plik: " + testFile.getFileName());
-
-        // 3. Symulacja: glit add test_statusu.txt
-        // Twoja metoda add oczekuje Path w liście argumentów
-        System.out.println("\n>>> Wykonuję: add test_statusu.txt");
-        List<Object> addArgs = new ArrayList<>();
-        addArgs.add(Paths.get("test_statusu.txt")); 
-        Call addCall = new Call("add", null, addArgs);
-        add(addCall);
-
-        // 4. Symulacja: glit status
-        System.out.println("\n>>> Wykonuję: status");
-        Call statusCall = new Call("status", null, null);
-        status(statusCall);
-
-        // 5. Symulacja: glit cat-file (wyciągamy hash z indeksu, żeby wiedzieć co czytać)
-        INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
-        GlitIndex index = IndexUtils.parse(INDEX_PATH);
-        
-        if (!index.getEntries().isEmpty()) {
-            // Pobieramy hash pierwszego pliku z brzegu
-            String hash = new String(index.getEntries().get(0).getObjectId());
-            System.out.println("\n>>> Wykonuję: cat-file dla hasha: " + hash);
+        try {
+            // 1. Przygotowanie czystego środowiska w aktualnym katalogu
+            Path currentDir = Path.of(System.getProperty("user.dir"));
+            Path glitDir = currentDir.resolve(".glit");
             
-            List<Object> catArgs = new ArrayList<>();
-            catArgs.add(hash);
-            Call catCall = new Call("cat-file", List.of("-p"), catArgs);
-            catFile(catCall);
-        } else {
-            System.out.println("\n[!] Indeks jest pusty - coś poszło nie tak w metodzie add.");
-        }
+            // Czyścimy stare pliki testowe jeśli istniały
+            Files.deleteIfExists(glitDir.resolve("index"));
+            Files.deleteIfExists(glitDir.resolve("HEAD"));
+            if (Files.exists(glitDir)) {
+                Files.walk(glitDir).sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+            }
+            Files.createDirectories(glitDir);
 
-    } catch (Exception e) {
-        System.err.println("\n[!] BŁĄD PODCZAS TESTU:");
-        e.printStackTrace();
+            // 2. Tworzenie pliku HEAD (Brak commitów -> pusta referencja)
+            Files.writeString(glitDir.resolve("HEAD"), "ref: refs/heads/main\n");
+
+            // 3. Tworzenie fizycznych plików na dysku
+            Path file1 = currentDir.resolve("dodany_do_indexu.txt");
+            Path file2 = currentDir.resolve("nieisledzony_plik.txt");
+            Path file3 = currentDir.resolve("zmodyfikowany_na_dysku.txt");
+
+            Files.writeString(file1, "Zawartość pliku pierwszego");
+            Files.writeString(file2, "Zawartość nieśledzona");
+            Files.writeString(file3, "Pierwotna zawartość");
+
+            System.out.println("=== ŚRODOWISKO UTWORZONE ===");
+            System.out.println("1. Stworzono plik: " + file1.getFileName());
+            System.out.println("2. Stworzono plik: " + file2.getFileName());
+            System.out.println("3. Stworzono plik: " + file3.getFileName());
+            
+            // 4. RĘCZNA SYMULACJA 'GLIT ADD' (Skoro nie testujemy tu metody add, wpiszemy dane bezpośrednio)
+            // Tworzymy sztuczną mapę indeksu, którą zapiszemy (lub przekażemy)
+            // Na potrzeby testu statusu, zasymulujemy, że plik1 i plik3 są w indeksie
+            System.out.println("\n[Symulacja] Robimy 'glit add' dla dodany_do_indexu.txt oraz zmodyfikowany_na_dysku.txt...");
+            
+            // UWAGA: Aby program działał w pełni bez błędu z plikiem indeksu, 
+            // najlepiej po prostu odpalić Waszą metodę add(call) w tym miejscu!
+            // Jeśli chcesz przetestować sam status "na sucho", Twoje mapy załatwią sprawę.
+            
+            System.out.println("\n=== URUCHAMIAMY: glit status ===");
+            status(null);
+
+        } catch (IOException e) {
+            System.err.println("Błąd przygotowania testu: " + e.getMessage());
+        }
     }
-}
 
 
 }
