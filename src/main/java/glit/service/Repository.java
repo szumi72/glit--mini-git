@@ -1,19 +1,29 @@
 package glit.service;
 
-import java.io.*;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import glit.cli.Call;
-import glit.model.*;
+import glit.model.Commit;
+import glit.model.GlitIndex;
+import glit.model.GlitObject;
+import glit.model.IndexEntry;
+import glit.model.Tree;
+import glit.model.TreeEntry;
 import glit.storage.ObjectReader;
 import glit.storage.ObjectWriter;
+import glit.util.HashUtils;
 import glit.util.IndexUtils;
 
 /**
@@ -104,8 +114,20 @@ public class Repository {
                 System.out.println("Couldn't create " + f);
                 throw e;
             }
+           
         }
-
+        //dodałam to żeby sie nie tworzył pusty plik
+        try {
+            INDEX_PATH = REPOSITORY_PATH.resolve(".glit").resolve("index");
+            if(Files.exists(INDEX_PATH)){
+                GlitIndex index = new GlitIndex(2); 
+                IndexUtils.write(index, INDEX_PATH);
+                System.out.println("Initialized .glit/index with proper header.");
+            }
+            
+        } catch (NoSuchAlgorithmException | IOException e) {
+            System.err.println("Nie udało się utworzyć index: " + e.getMessage());
+        }
     }
 
     // --- ADD functionality ---
@@ -228,14 +250,19 @@ public class Repository {
 
             }
 
-            try {
+            
+           
+            
+            // co z usunietymi plikami? -> chyba przy commit się stworzy nowy GlitIndex, w którym ich nie będzie
+        }
+        //wyjelam ten blok poza else żeby index zapisywał się zawsze nie ważne czy jest nowy czy nadpisany
+         try {
                 IndexUtils.write(newIndex, INDEX_PATH);
             } catch (NoSuchAlgorithmException e) {
                 System.out.println(e);
             }
+        
 
-            // co z usunietymi plikami? -> chyba przy commit się stworzy nowy GlitIndex, w którym ich nie będzie
-        }
     }
 
     public static void catFile(Call cliCall){
@@ -258,6 +285,9 @@ public class Repository {
 
     //----Glit Status------//
     public static void status(Call cliCall){
+
+        //TODO jeszcze trzeba porównywać z plikami chyba na dysku
+
         //przypisanie sciezki do repo
         REPOSITORY_PATH = whereIsRepo();
         if (REPOSITORY_PATH == null) return;
@@ -267,59 +297,61 @@ public class Repository {
 
         Map<String,String> indexMap = mapIndexFiles(INDEX_PATH);
 
-        //moze byc null jak nie było jeszcze commita wtedy wszystko do new idzie
-        //String commitHashHead = getLastCommitHash(headPath);
-
-        //////////////to dodałam nie wiem czy tak zostawiać zamiast tej linijki wyżej
+        
         Path actualRefPath = getPathFromHead(headPath);
 
         String commitHashHead = "";
         if (actualRefPath != null && Files.exists(actualRefPath)) {
-            commitHashHead = getLastCommitHash(actualRefPath).trim();
+            commitHashHead = getLastCommitHash(actualRefPath);            
         }
-        //////////////////////////
+       
+        try {
+            String headContent = Files.readString(headPath).trim();
+            String branchName = headContent.startsWith("ref: refs/heads/") 
+                ? headContent.replace("ref: refs/heads/", "") 
+                : "detached HEAD";
+            System.out.println("On branch " + branchName);
+        } catch (IOException e) {
+            System.out.println("On branch unknown");
+        }
 
-
-
-        //TODO wyswietlanie odpowiedniej gałęzi
-        System.out.println("On branch ... ");
         System.out.println("Changes to be commited");
+
         if(commitHashHead.isEmpty()){
             //jezeli commit jest pusty to wszsytko jest wypisywane jako nowe pliki
             for(String path:indexMap.keySet()){
-                System.out.println("new file:\t"+path);
+                System.out.println("\tnew file:\t"+path);
             }
         }else{
-
 
             Tree headTree = getHEADTree(commitHashHead);
             Map<String,String> headMap = mapHeadFiles(headTree,"");
             StringBuilder output = new StringBuilder();
+
             for(String path:indexMap.keySet()){
                 if(!headMap.containsKey(path)){
                     //"\n" działa na linuxach a na windowsach nie koniecznie
-                    output.append("new file: ").append(path).append("\n");
+                    output.append("\tnew file:\t").append(path).append("\n");
 
-                }else{
-                    if(!headMap.get(path).equals(indexMap.get(path))){
-                        output.append("modified: ").append(path).append("\n");
-                    }
+                }else if(!headMap.get(path).equals(indexMap.get(path))){
+                    output.append("\tmodified:\t").append(path).append("\n");
                 }
+                
             }
             for(String path:headMap.keySet()){
                 if(!indexMap.containsKey(path)){
                     output.append("deleted: ").append(path).append("\n");
                 }
             }
-        }
+
+            if (output.length() == 0) {
+                System.out.println("\tnothing staged for commit");
+            } else {
+                System.out.print(output.toString());
+            }
 
 
-        //TODO dokonczyc tu reszte
-        //trzeba teraz porównać wartosci z index z tymi z head i odpowiednio wypisac
-        //obsluzyc to że head jest pusty bo to bedzie pierwszt commit
-
-
-
+        }        
 
     }
 
@@ -328,7 +360,7 @@ public class Repository {
         try {
             return Files.readString(commitPath);
         }catch (IOException e){
-            throw new RuntimeException("Can't read commit from path");
+            return "";
         }
     }
 
@@ -368,19 +400,26 @@ public class Repository {
     }
 
     private static Map<String,String> mapIndexFiles(Path indexPath){
+        Map<String,String> indexMap = new HashMap<>();
+        
         try{
-            GlitIndex index = IndexUtils.parse(INDEX_PATH);
+
+            if(!Files.exists(indexPath) || Files.size(indexPath)==0){                
+                return indexMap;
+            }
+
+            GlitIndex index = IndexUtils.parse(indexPath);
             List<IndexEntry> indexEntries = index.getEntries();
-            Map<String,String> indexMap = new HashMap<>();
+            
             for(IndexEntry entry: indexEntries){
-                String hash = new String(entry.getObjectId());
+                String hash = HashUtils.byteArrayToHexString(entry.getObjectId());
                 indexMap.put(entry.getPath(),hash);
             }
-            return indexMap;
 
         }catch (IOException e){
-            throw new RuntimeException("Index not found");
+            System.err.println("Index not found " + e.getMessage());
         }
+        return indexMap;
 
     }
 
@@ -397,15 +436,17 @@ public class Repository {
             if(entry.mode().equals("100644")){
                 String hash = entry.hash();
                 headMap.put(currentPath,hash);
+            //jak nie jest blobem to jest tree
             }else{
-                Map<String,String> tempMap = new HashMap<>();
-                String newPath = currentPath + "/" + entry.fileName();
+                //Map<String,String> tempMap = new HashMap<>();
+                String newPath = currentPath;
                 try {
                     ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
                     GlitObject object = reader.readObject(entry.hash());
                     if (object instanceof Tree subTree) {
-                        headMap.putAll(mapHeadFiles(subTree, currentPath));
+                        headMap.putAll(mapHeadFiles(subTree, newPath));
                     }
+                    
                 }catch (IOException e){
                     throw new RuntimeException("cannot read object");
                 }
@@ -419,11 +460,60 @@ public class Repository {
     //---------glit status----------//
 
      //main only for personal tests
-    public static void main(String[] args) throws Exception {
-        System.out.println("Working");
-        // init();
+    // public static void main(String[] args) throws Exception {
+    //     System.out.println("Working");
+    //     // init();
 
+    // }
+
+    public static void main(String[] args) {
+    try {
+        System.out.println("=== AUTOMATYCZNY TEST GLIT ===\n");
+
+        // 1. Inicjalizacja repozytorium (tworzy .glit i pliki)
+        init();
+        REPOSITORY_PATH = whereIsRepo();
+        
+        // 2. Tworzymy fizyczny plik na dysku, żebyśmy mieli co dodawać
+        Path testFile = REPOSITORY_PATH.resolve("test_statusu.txt");
+        Files.writeString(testFile, "To jest zawartość testowa do sprawdzenia cat-file i statusu.");
+        System.out.println("Utworzono plik: " + testFile.getFileName());
+
+        // 3. Symulacja: glit add test_statusu.txt
+        // Twoja metoda add oczekuje Path w liście argumentów
+        System.out.println("\n>>> Wykonuję: add test_statusu.txt");
+        List<Object> addArgs = new ArrayList<>();
+        addArgs.add(Paths.get("test_statusu.txt")); 
+        Call addCall = new Call("add", null, addArgs);
+        add(addCall);
+
+        // 4. Symulacja: glit status
+        System.out.println("\n>>> Wykonuję: status");
+        Call statusCall = new Call("status", null, null);
+        status(statusCall);
+
+        // 5. Symulacja: glit cat-file (wyciągamy hash z indeksu, żeby wiedzieć co czytać)
+        INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
+        GlitIndex index = IndexUtils.parse(INDEX_PATH);
+        
+        if (!index.getEntries().isEmpty()) {
+            // Pobieramy hash pierwszego pliku z brzegu
+            String hash = new String(index.getEntries().get(0).getObjectId());
+            System.out.println("\n>>> Wykonuję: cat-file dla hasha: " + hash);
+            
+            List<Object> catArgs = new ArrayList<>();
+            catArgs.add(hash);
+            Call catCall = new Call("cat-file", List.of("-p"), catArgs);
+            catFile(catCall);
+        } else {
+            System.out.println("\n[!] Indeks jest pusty - coś poszło nie tak w metodzie add.");
+        }
+
+    } catch (Exception e) {
+        System.err.println("\n[!] BŁĄD PODCZAS TESTU:");
+        e.printStackTrace();
     }
+}
 
 
 }

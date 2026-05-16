@@ -1,8 +1,9 @@
 package glit.model;
-import glit.util.HashUtils;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+
+import glit.util.HashUtils;
 
 /**
  * Class Commit
@@ -100,7 +101,7 @@ public class Commit extends GlitObject{
     @Override
     public void printContent(){
         String contentString = buildCommitContent();
-        System.out.print(contentString);
+        System.out.println(contentString);
     }
 
     public String getMessage(){return message;}
