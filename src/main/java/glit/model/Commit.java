@@ -28,11 +28,11 @@ public class Commit extends GlitObject{
     public Commit(byte [] content){
         String fullContent = new String(content,StandardCharsets.UTF_8);
 
-        String[] sections = fullContent.split("\n\n", 2);
+        String[] sections = fullContent.split(System.lineSeparator()+System.lineSeparator(), 2);
         String headersPart = sections[0];
         this.message = sections.length > 1 ? sections[1] : "";
 
-        String [] lines = headersPart.split("\n");
+        String [] lines = headersPart.split(System.lineSeparator());
 
         String tHash = null;
         String pHash = null;
@@ -78,12 +78,12 @@ public class Commit extends GlitObject{
 
     private String buildCommitContent(){
         StringBuilder sb = new StringBuilder();
-        sb.append("tree ").append(treeHash).append("\n");
+        sb.append("tree ").append(treeHash).append(System.lineSeparator());
         if (parentHash != null) {
-            sb.append("parent ").append(parentHash).append("\n");
+            sb.append("parent ").append(parentHash).append(System.lineSeparator());
         }
-        sb.append("author ").append(author).append(" ").append(timestamp).append(" ").append(timezone).append("\n");
-        sb.append("committer ").append(author).append(" ").append(timestamp).append(" ").append(timezone).append("\n\n");
+        sb.append("author ").append(author).append(" ").append(timestamp).append(" ").append(timezone).append(System.lineSeparator());
+        sb.append("committer ").append(author).append(" ").append(timestamp).append(" ").append(timezone).append(System.lineSeparator()).append(System.lineSeparator());
         sb.append(message);
         return sb.toString();
     }

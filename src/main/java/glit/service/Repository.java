@@ -199,7 +199,7 @@ public class Repository {
         REPOSITORY_PATH = whereIsRepo();
 
         if (REPOSITORY_PATH == null) {
-            System.out.println("Glit repository not found. To start a new one type:\nglit init");
+            System.out.println("Glit repository not found. To start a new one type:" + System.lineSeparator() + "glit init");
             return;
         }
 
@@ -284,8 +284,12 @@ public class Repository {
         }
     }
 
+
+    /**
+     * Method that print current stauts of files in the project
+     */
     //----Glit Status------//
-    public static void status(Call cliCall){        
+    public static void status(){        
 
         //przypisanie sciezki do repo
         REPOSITORY_PATH = whereIsRepo();
@@ -351,7 +355,9 @@ public class Repository {
     private static Map<String,String> mapWorkingDirectory(){
         Map<String, String> dirMap = new HashMap<>();
         try(Stream<Path> paths = Files.walk(REPOSITORY_PATH)){
-            paths.filter(Files::isRegularFile).filter(path->(!path.startsWith(REPOSITORY_PATH.resolve(".glit")))).filter(path->!path.startsWith(REPOSITORY_PATH.resolve(".git"))).filter(path -> !path.startsWith(REPOSITORY_PATH.resolve("target"))).forEach(path->{
+            paths.filter(Files::isRegularFile).filter(path->(!path.startsWith(REPOSITORY_PATH.resolve(".glit"))))
+            .filter(path->!path.startsWith(REPOSITORY_PATH.resolve(".git")))
+            .filter(path -> !path.startsWith(REPOSITORY_PATH.resolve("target"))).forEach(path->{
                 try {
                     byte[] content = Files.readAllBytes(path);
                     Blob temp = new Blob(content);
@@ -369,23 +375,23 @@ public class Repository {
         return dirMap;
     }
 
-    //otput metody status porównyje mapy plików z indexu i commita w headzie
+    //output metody status porównyje mapy plików z indexu i commita w headzie
     private static String produceStatusOutput(Map<String, String> indexMap,Map<String, String> headMap,Map<String, String> wdMap){
         StringBuilder output = new StringBuilder();
 
             for(String path:indexMap.keySet()){
                 if(!headMap.containsKey(path)){
                     //"\n" działa na linuxach a na windowsach nie koniecznie
-                    output.append("\tnew file:\t").append(path).append("\n");
+                    output.append("\tnew file:\t").append(path).append(System.lineSeparator());
 
                 }else if(!headMap.get(path).equals(indexMap.get(path))){
-                    output.append("\tmodified:\t").append(path).append("\n");
+                    output.append("\tmodified:\t").append(path).append(System.lineSeparator());
                 }
                 
             }
             for(String path:headMap.keySet()){
                 if(!indexMap.containsKey(path)){
-                    output.append("deleted: ").append(path).append("\n");
+                    output.append("deleted: ").append(path).append(System.lineSeparator());
                 }
             }
             
@@ -403,14 +409,14 @@ public class Repository {
 
             for(String path:wdMap.keySet()){
                 if(indexMap.containsKey(path) && !indexMap.get(path).equals(wdMap.get(path))){                    
-                    changesNotStaged.append("\t").append(path).append("\n");                    
+                    changesNotStaged.append("\t").append(path).append(System.lineSeparator());                   
                 }
                 
             }
 
             for(String path:wdMap.keySet()){
                 if(!indexMap.containsKey(path)){
-                    untrackedFiles.append("\t").append(path).append("\n");
+                    untrackedFiles.append("\t").append(path).append(System.lineSeparator());
                 }
                 
             }            
@@ -418,11 +424,11 @@ public class Repository {
         StringBuilder finalOutput = new StringBuilder();
 
         if (changesNotStaged.length() > 0) {
-            finalOutput.append("Changes not staged for commit:\n").append(changesNotStaged).append("\n");
+            finalOutput.append("Changes not staged for commit:").append(System.lineSeparator()).append(changesNotStaged).append(System.lineSeparator());
         }
 
         if (untrackedFiles.length() > 0) {
-            finalOutput.append("Untracked files:\n").append(untrackedFiles).append("\n");
+            finalOutput.append("Untracked files:").append(System.lineSeparator()).append(untrackedFiles).append(System.lineSeparator());
         }
 
         return finalOutput.toString();
