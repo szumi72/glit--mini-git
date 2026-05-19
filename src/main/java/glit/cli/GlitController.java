@@ -1,7 +1,6 @@
 package glit.cli;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -10,9 +9,8 @@ import java.nio.file.PathMatcher;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
+
 import glit.service.Repository;
-import glit.storage.ObjectReader;
-import glit.storage.ObjectWriter;
 
 public class GlitController {
 
@@ -217,6 +215,9 @@ public class GlitController {
                 arguments.add(args[INDEX_OF_FUNCTION + 1]);
                 return new Call(functionName,null,arguments);
             }
+            case "status" ->{
+                return null;
+            }
 
             default -> {
                 System.out.println("Glit doesn't have a function called " + functionName + ".");
@@ -240,7 +241,8 @@ public class GlitController {
             }
             case "add" ->{
                 System.out.println("executing add... \n");
-                Repository.add(cliCall);}
+                Repository.add(cliCall);
+            }
             case "commit" ->
                 System.out.println("commit executed");
             case "checkout" ->
@@ -251,6 +253,11 @@ public class GlitController {
                 System.out.println("cat-file executed");
                 Repository.catFile(cliCall);
             }
+            case "status" ->{
+                System.out.println("statu executed");
+                Repository.status();
+            }
+            
         }
     }
 }

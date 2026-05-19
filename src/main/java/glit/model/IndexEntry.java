@@ -2,14 +2,16 @@ package glit.model;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.TimeUnit;
-import java.nio.channels.FileChannel;
-import java.nio.file.StandardOpenOption;
-import java.nio.ByteOrder;
+
 import glit.storage.ObjectWriter;
+import glit.util.HashUtils;
 
 
 public class IndexEntry {
@@ -156,7 +158,7 @@ public class IndexEntry {
             GlitObject o = new Blob(buffer.array());
             ObjectWriter writer = new ObjectWriter(repositoryPath);
             String hash = writer.saveObject(o);
-            entry = new IndexEntry(path, hash.getBytes());
+            entry = new IndexEntry(path, HashUtils.hexStringToByteArray(hash));
         }catch(IOException e){throw new IOException("Couldn't create Blob from "+path);}
         return entry;
     }
