@@ -286,10 +286,8 @@ public class Repository {
                 }
                 // System.out.println(el);
                 if (isChanged(currIndex, arg)) {
-                    entries.stream()
-                            .filter(e -> e.getPath().equals(arg.toString()))
-                            .forEach(entries::remove);
-                    // index.arguments.pop(el) - na koniec zostana te niewywolane
+                    entries.removeIf(e -> e.getPath().equals(arg.toString()));
+                    
 
                     newIndex.add(IndexEntry.createFromPath(arg, REPOSITORY_PATH));
                     isAnyChanged = true;

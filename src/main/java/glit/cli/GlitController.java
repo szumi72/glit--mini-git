@@ -17,7 +17,7 @@ public class GlitController {
     
     public static List<Path> expandWildcard(String pattern) throws IOException {
         Path dir = Path.of(System.getProperty("user.dir"));
-        System.out.println(dir + " " + pattern);
+        // System.out.println(dir + " " + pattern);
         Path diffPath = repositoryPath.relativize(dir);
         // System.out.println(Path.of(System.getProperty("user.dir")));
         List<Path> result = new ArrayList<>();
