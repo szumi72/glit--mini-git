@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import glit.service.Repository;
+import jdk.javadoc.doclet.Reporter;
 
 public class GlitController {
 
@@ -87,7 +88,7 @@ public class GlitController {
                             arguments.addAll(files);
                         }
                     } else {
-                        arguments.add(Path.of(args[i]));
+                        arguments.add(Repository.REPOSITORY_PATH.relativize(Path.of(args[i])));
                     }
                 }
                 return new Call(functionName, null, arguments);
