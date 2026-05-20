@@ -11,30 +11,38 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import glit.service.Repository;
-import jdk.javadoc.doclet.Reporter;
 
 public class GlitController {
 
     
     public static List<Path> expandWildcard(String pattern) throws IOException {
         Path dir = Path.of(System.getProperty("user.dir"));
+        // System.out.println(dir);
+        // System.out.println(Path.of(System.getProperty("user.dir")));
         List<Path> result = new ArrayList<>();
 
         if (pattern.equals(".") || pattern.equals("./")) {
             pattern = "**";
         }
-        
+
+        if(Files.isDirectory(Path.of(pattern), LinkOption.NOFOLLOW_LINKS)){
+            pattern = pattern + "/**";
+        }
+
         try {
             PathMatcher matcher = FileSystems.getDefault()
-                .getPathMatcher("glob:" + pattern);
+                    .getPathMatcher("glob:" + pattern);
             try (Stream<Path> stream = Files.walk(dir)) {
                 stream
                         .filter(Files::isRegularFile)
                         .map(dir::relativize)
                         .filter(p -> matcher.matches(p))
+                        .map(Repository.whereIsRepo()::relativize)
                         .forEach(result::add);
             }
-        }catch(Exception e){ System.out.println(pattern + " not recognized");}
+        } catch (Exception e) {
+            System.out.println(pattern + " not recognized");
+        }
 
         return result;
     }
@@ -78,7 +86,7 @@ public class GlitController {
                     }
                     // file or files with wildcards not exists
                     Path file = Path.of(args[i]);
-                    if (!Files.exists(file) || Files.isDirectory(file, LinkOption.NOFOLLOW_LINKS)) {
+                    if (Files.isDirectory(file, LinkOption.NOFOLLOW_LINKS) || !Files.exists(file)) {
                         // System.out.println("Expanding wildcard... ");
                         List<Path> files = expandWildcard(args[i]);
                         if (files == null || files.size() < 1) {
@@ -88,7 +96,8 @@ public class GlitController {
                             arguments.addAll(files);
                         }
                     } else {
-                        arguments.add(Repository.REPOSITORY_PATH.relativize(Path.of(args[i])));
+                        // arguments.add(file);
+                        arguments.add(Repository.whereIsRepo().relativize(file.toAbsolutePath()));
                     }
                 }
                 return new Call(functionName, null, arguments);
@@ -255,7 +264,7 @@ public class GlitController {
                 Repository.catFile(cliCall);
             }
             case "status" ->{
-                System.out.println("statu executed");
+                System.out.println("status executed");
                 Repository.status();
             }
             

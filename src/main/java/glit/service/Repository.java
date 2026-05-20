@@ -58,7 +58,7 @@ public class Repository {
      *
      * @return ścieżka do repozytorium lub null, jeśli nie znaleziono
      */
-    static Path whereIsRepo() {
+    public static Path whereIsRepo() {
         try {
             Path current = Paths.get(".").toRealPath();
             while (current != null) {
@@ -156,9 +156,9 @@ public class Repository {
         if (ignorePatterns.isEmpty()) {
             loadIgnorePatterns();
         }
-        System.out.println("relativizing: " + REPOSITORY_PATH + " and " + path);
+        // System.out.println("relativizing: " + REPOSITORY_PATH + " and " + path);
         Path repoRelative = REPOSITORY_PATH.relativize(path.toAbsolutePath());
-        System.out.println(repoRelative);
+        // System.out.println(repoRelative);
 
         for (String pattern : ignorePatterns) {
 
@@ -215,8 +215,8 @@ public class Repository {
         if (entry == null) {
             return true;
         }
-
-        BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
+        Path attrPath = REPOSITORY_PATH.resolve(file);
+        BasicFileAttributes attrs = Files.readAttributes(attrPath, BasicFileAttributes.class);
 
         // OS independent
         if (entry.getCtimeSec() != attrs.creationTime().to(TimeUnit.SECONDS)) {
@@ -233,19 +233,19 @@ public class Repository {
         }
 
         // OS dependent
-        if (entry.getDev() != (long) Files.getAttribute(file, "unix:dev")) {
+        if (entry.getDev() != (long) Files.getAttribute(attrPath, "unix:dev")) {
             return true;
         }
-        if (entry.getIno() != (long) Files.getAttribute(file, "unix:ino")) {
+        if (entry.getIno() != (long) Files.getAttribute(attrPath, "unix:ino")) {
             return true;
         }
-        if (entry.getMode() != (long) Files.getAttribute(file, "unix:mode")) {
+        if (entry.getMode() != (long) Files.getAttribute(attrPath, "unix:mode")) {
             return true;
         }
-        if (entry.getUid() != (long) Files.getAttribute(file, "unix:uid")) {
+        if (entry.getUid() != (long) Files.getAttribute(attrPath, "unix:uid")) {
             return true;
         }
-        if (entry.getGid() != (long) Files.getAttribute(file, "unix:gid")) {
+        if (entry.getGid() != (long) Files.getAttribute(attrPath, "unix:gid")) {
             return true;
         }
 
@@ -419,7 +419,7 @@ public class Repository {
                     Blob temp = new Blob(content);
                     String relativePath = REPOSITORY_PATH.relativize(path).toString();
                     dirMap.put(relativePath, temp.getHash());
-                } catch (Exception e) {
+                } catch (IOException e) {
                     System.err.println("Couldn't read file" + path);
                 }
 

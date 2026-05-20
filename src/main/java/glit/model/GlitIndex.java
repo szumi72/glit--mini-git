@@ -6,7 +6,7 @@ import java.util.List;
 public class GlitIndex {
 
     private final int version;
-    private List<IndexEntry> entries;
+    private final List<IndexEntry> entries;
     private byte[] checksum;
 
     public GlitIndex(int version, List<IndexEntry> entries, byte[] checksum) {
