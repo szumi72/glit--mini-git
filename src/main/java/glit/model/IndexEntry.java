@@ -11,6 +11,9 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
+import glit.storage.ObjectWriter;
+import glit.util.HashUtils;
+
 import glit.service.Repository;
 import glit.storage.ObjectWriter;
 
@@ -165,13 +168,10 @@ public class IndexEntry {
             buffer.order(ByteOrder.BIG_ENDIAN);
             channel.read(buffer);
             GlitObject o = new Blob(buffer.array());
-            ObjectWriter writer = new ObjectWriter();
-            String hash = writer.saveObject(repositoryPath, o);
-            entry = new IndexEntry(path, hash.getBytes());
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw new IOException("Couldn't create Blob from " + path);
-        }
+            ObjectWriter writer = new ObjectWriter(repositoryPath);
+            String hash = writer.saveObject(o);
+            entry = new IndexEntry(path, HashUtils.hexStringToByteArray(hash));
+        }catch(IOException e){throw new IOException("Couldn't create Blob from "+path);}
         return entry;
     }
 
