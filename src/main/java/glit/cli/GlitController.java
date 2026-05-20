@@ -13,11 +13,12 @@ import java.util.stream.Stream;
 import glit.service.Repository;
 
 public class GlitController {
-
+    private final static Path repositoryPath = Repository.whereIsRepo();
     
     public static List<Path> expandWildcard(String pattern) throws IOException {
         Path dir = Path.of(System.getProperty("user.dir"));
-        // System.out.println(dir);
+        System.out.println(dir + " " + pattern);
+        Path diffPath = repositoryPath.relativize(dir);
         // System.out.println(Path.of(System.getProperty("user.dir")));
         List<Path> result = new ArrayList<>();
 
@@ -37,7 +38,7 @@ public class GlitController {
                         .filter(Files::isRegularFile)
                         .map(dir::relativize)
                         .filter(p -> matcher.matches(p))
-                        .map(Repository.whereIsRepo()::relativize)
+                        .map(p -> diffPath.resolve(p))
                         .forEach(result::add);
             }
         } catch (Exception e) {
@@ -46,7 +47,7 @@ public class GlitController {
 
         return result;
     }
-
+    
     public static Call validateAndParseCommandLineArgs(String[] args) throws IOException {
         if (args.length < 1) {
             String s = """
@@ -57,7 +58,16 @@ public class GlitController {
             System.out.println(s);
             return null;
         }
+
+        
         int INDEX_OF_FUNCTION = 0;
+
+        // no repo
+        if(repositoryPath == null && !args[INDEX_OF_FUNCTION].equals("init")){
+            System.out.println("No glit repository found. Create one with: glit init");
+            return null;
+        }
+
         String functionName = args[INDEX_OF_FUNCTION];
         List<String> flags = new ArrayList<>();
         List<Object> arguments = new ArrayList<>();
@@ -73,6 +83,7 @@ public class GlitController {
             }
 
             case "add" -> {
+                
                 // no arguments
                 if (args.length <= INDEX_OF_FUNCTION + 1) {
                     System.out.println("File name not given. \nUsage: glit add <file1> [file2] ...");
@@ -97,7 +108,7 @@ public class GlitController {
                         }
                     } else {
                         // arguments.add(file);
-                        arguments.add(Repository.whereIsRepo().relativize(file.toAbsolutePath()));
+                        arguments.add(repositoryPath.relativize(file.toAbsolutePath()));
                     }
                 }
                 return new Call(functionName, null, arguments);

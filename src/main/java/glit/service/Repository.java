@@ -268,8 +268,7 @@ public class Repository {
         }
 
         Path dir = Path.of(System.getProperty("user.dir"));
-        Path diffPath = REPOSITORY_PATH.relativize(dir); // -> przerzucic do parsowania argumentow!!!!!!!!!!!
-        // System.out.println(diffPath + " " + REPOSITORY_PATH);
+        
 
         INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
         boolean indexExists = Files.exists(INDEX_PATH) && Files.size(INDEX_PATH) > 0;
