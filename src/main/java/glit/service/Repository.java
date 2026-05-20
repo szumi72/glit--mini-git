@@ -137,6 +137,8 @@ public class Repository {
                         StandardOpenOption.TRUNCATE_EXISTING)) {
             writer.write(".glit/");
             writer.newLine();
+            writer.write(".glitignore");
+            writer.newLine();
             System.out.println("Created .glitignore with standard content.");
         } catch (IOException e) {
             System.err.println(e);
@@ -211,6 +213,7 @@ public class Repository {
     private static boolean isChanged(GlitIndex index, Path file) throws IOException {
         IndexEntry entry = findInIndex(index, file);
         if (entry == null) {
+            System.out.println("not found in index");
             return true;
         }
         Path attrPath = REPOSITORY_PATH.resolve(file);
@@ -222,7 +225,7 @@ public class Repository {
             System.out.println("csec");
             return true;
         }
-        if (entry.getCtimeNsec() != attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L) {
+        if (entry.getCtimeNsec() != ((attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L))) {
             System.out.println(entry.getCtimeNsec() + "   " + attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L);
             System.out.println("cnsec");
             return true;
@@ -238,23 +241,29 @@ public class Repository {
 
         // OS dependent
         if (entry.getDev() != (long) Files.getAttribute(attrPath, "unix:dev")) {
+            System.out.println("dev");
             return true;
         }
         if (entry.getIno() != (long) Files.getAttribute(attrPath, "unix:ino")) {
+            System.out.println("ino");
             return true;
         }
-        if (entry.getMode() != (long) Files.getAttribute(attrPath, "unix:mode")) {
+        if (entry.getMode() != (int) Files.getAttribute(attrPath, "unix:mode")) {
+            System.out.println("mode");
             return true;
         }
-        if (entry.getUid() != (long) Files.getAttribute(attrPath, "unix:uid")) {
+        if (entry.getUid() != (int) Files.getAttribute(attrPath, "unix:uid")) {
+            System.out.println("uid");
             return true;
         }
-        if (entry.getGid() != (long) Files.getAttribute(attrPath, "unix:gid")) {
+        if (entry.getGid() != (int) Files.getAttribute(attrPath, "unix:gid")) {
+            System.out.println("gid");
             return true;
         }
 
         // OS independent
         if (entry.getFileSize() != attrs.size()) {
+            System.out.println("size");
             return true;
         }
 
@@ -299,10 +308,12 @@ public class Repository {
             if (!isAnyChanged) {
                 System.out.println("Nothing was added - all files has been already staged.");
                 return;
+            }else{
+                newIndex.addAll(entries);
             }
         } else {
 
-            Files.write(INDEX_PATH, new byte[0], StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            // Files.write(INDEX_PATH, new byte[0], StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING); -> in IndexUtils there is doubling
 
             for (Object el : cliCall.getArguments()) {
                 Path arg = (Path) el;
@@ -344,7 +355,7 @@ public class Repository {
     }
 
     /**
-     * Method that print current stauts of files in the project
+     * Method that print current status of files in the project
      */
     //----Glit Status------//
     public static void status() {

@@ -52,15 +52,15 @@ public class IndexEntry {
         Path attrPath = repositoryPath.resolve(path);
         BasicFileAttributes attrs = Files.readAttributes(attrPath, BasicFileAttributes.class);
         this.ctimeSec = attrs.creationTime().to(TimeUnit.SECONDS);
-        this.ctimeNsec = attrs.creationTime().to(TimeUnit.NANOSECONDS);
+        this.ctimeNsec = attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L;
         this.mtimeSec = attrs.lastModifiedTime().to(TimeUnit.SECONDS);
-        this.mtimeNsec = attrs.lastModifiedTime().to(TimeUnit.NANOSECONDS);
+        this.mtimeNsec = attrs.lastModifiedTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L;
         this.dev = (long) Files.getAttribute(attrPath, "unix:dev");
         this.ino = (long) Files.getAttribute(attrPath, "unix:ino");
         this.mode = (int) Files.getAttribute(attrPath, "unix:mode");
         this.uid = (int) Files.getAttribute(attrPath, "unix:uid");
         this.gid = (int) Files.getAttribute(attrPath, "unix:gid");
-        this.fileSize = 0;
+        this.fileSize = attrs.size();
         this.objectId = hash;
         this.path = path.toString();
     }
