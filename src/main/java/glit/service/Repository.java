@@ -144,8 +144,6 @@ public class Repository {
     }
 
     // --- ADD functionality ---
-
-
     // currently only: 
     // - directory/
     // - *.ext
@@ -217,18 +215,24 @@ public class Repository {
         }
         Path attrPath = REPOSITORY_PATH.resolve(file);
         BasicFileAttributes attrs = Files.readAttributes(attrPath, BasicFileAttributes.class);
+        
 
         // OS independent
         if (entry.getCtimeSec() != attrs.creationTime().to(TimeUnit.SECONDS)) {
+            System.out.println("csec");
             return true;
         }
         if (entry.getCtimeNsec() != attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L) {
+            System.out.println(entry.getCtimeNsec() + "   " + attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L);
+            System.out.println("cnsec");
             return true;
         }
         if (entry.getMtimeSec() != attrs.lastModifiedTime().to(TimeUnit.SECONDS)) {
+            System.out.println("msec");
             return true;
         }
         if (entry.getMtimeNsec() != attrs.lastModifiedTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L) {
+            System.out.println("mnsec");
             return true;
         }
 
@@ -268,7 +272,6 @@ public class Repository {
         }
 
         Path dir = Path.of(System.getProperty("user.dir"));
-        
 
         INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
         boolean indexExists = Files.exists(INDEX_PATH) && Files.size(INDEX_PATH) > 0;
@@ -286,9 +289,8 @@ public class Repository {
                 }
                 // System.out.println(el);
                 if (isChanged(currIndex, arg)) {
+                    System.out.println(arg + " is changed");
                     entries.removeIf(e -> e.getPath().equals(arg.toString()));
-                    
-
                     newIndex.add(IndexEntry.createFromPath(arg, REPOSITORY_PATH));
                     isAnyChanged = true;
 
