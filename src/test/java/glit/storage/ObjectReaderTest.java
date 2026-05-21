@@ -26,11 +26,11 @@ public class ObjectReaderTest{
         byte[] content = mes.getBytes(StandardCharsets.UTF_8);
         Blob b = new Blob(content);
 
-        ObjectWriter writer = new ObjectWriter(tempDir);
-        ObjectReader reader = new ObjectReader(tempDir);
-
         Path objectsPath = tempDir.resolve(".glit/objects");
         Files.createDirectories(objectsPath);
+
+        ObjectWriter writer = new ObjectWriter(tempDir);
+        ObjectReader reader = new ObjectReader(tempDir);
 
         // When
         String hash = writer.saveObject(b);

@@ -1,4 +1,5 @@
 package glit.storage;
+import glit.exceptions.MissingRepositoryException;
 import glit.service.Repository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -102,8 +103,8 @@ public class ObjectWriterTest {
     @Test
     public void testSaveWithoutRepository() {
 
-        assertThrows(IOException.class, () -> {
+        assertThrows(MissingRepositoryException.class, () -> {
             ObjectWriter writer = new ObjectWriter(null);
-        }, "Should throw IOException when repository path is missing");
+        }, "Should throw MissingRepository when repository path is missing");
     }
 }

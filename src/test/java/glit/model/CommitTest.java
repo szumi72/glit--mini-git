@@ -43,10 +43,10 @@ public class CommitTest {
         String timezone = "+0200";
         String message = "To jest testowa wiadomosc\nZ wieloma liniami.";
 
-        String rawContent = "tree " + treeHash + "\n" +
-                "parent " + parentHash + "\n" +
-                "author " + author + " " + timestamp + " " + timezone + "\n" +
-                "committer " + author + " " + timestamp + " " + timezone + "\n\n" +
+        String rawContent = "tree " + treeHash + System.lineSeparator() +
+                "parent " + parentHash + System.lineSeparator() +
+                "author " + author + " " + timestamp + " " + timezone + System.lineSeparator() +
+                "committer " + author + " " + timestamp + " " + timezone + System.lineSeparator()+System.lineSeparator() +
                 message;
 
         byte[] contentBytes = rawContent.getBytes(StandardCharsets.UTF_8);
