@@ -1,6 +1,7 @@
 package glit.service;
 
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -537,6 +538,36 @@ public class Repository {
     }
 
     //---------glit status----------//
+
+    //----glit log-------------//
+    public static void log(){
+        REPOSITORY_PATH = whereIsRepo();
+        if (REPOSITORY_PATH == null) return;
+
+        Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
+        try{
+            if(!Files.exists(headPath) || Files.readString(headPath).isEmpty() ){
+                System.out.println("No commits");
+                return;
+            }
+
+            String contentHead = Files.readString(headPath);
+            if(contentHead.startsWith("ref: ")){
+                String commitPathStr = contentHead.replace("ref: ","");
+                Path commitPath = Path.of(commitPathStr);
+                ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+            }
+
+        }catch (IOException e){
+            System.out.println("log failed");
+            return;
+        }
+
+
+
+
+
+    }
 
      //main only for personal tests
     public static void main(String[] args) throws Exception {

@@ -254,8 +254,12 @@ public class GlitController {
                 Repository.catFile(cliCall);
             }
             case "status" ->{
-                System.out.println("statu executed");
+                System.out.println("status executed");
                 Repository.status();
+            }
+            case "log" ->{
+                System.out.println("log executed");
+                Repository.log();
             }
             
         }
