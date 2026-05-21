@@ -1,0 +1,1 @@
+To jest zawartość testowa do sprawdzenia cat-file i statusu.

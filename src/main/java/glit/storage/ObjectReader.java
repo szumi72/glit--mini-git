@@ -1,5 +1,6 @@
 package glit.storage;
 
+import glit.exceptions.GlitException;
 import glit.model.Blob;
 import glit.model.Commit;
 import glit.model.GlitObject;
@@ -9,6 +10,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import glit.exceptions.MissingRepositoryException;
 
 import java.util.zip.InflaterInputStream;
 
@@ -16,11 +18,11 @@ public class ObjectReader {
 
     private final Path repositoryPath;
 
-    public ObjectReader(Path repositoryPath)throws IOException{
-        this.repositoryPath = repositoryPath;
-        if(repositoryPath == null){
-            throw new IOException("Cannot find glit repository!");
+    public ObjectReader(Path repositoryPath){
+        if(repositoryPath == null || !Files.exists(repositoryPath.resolve(".glit"))){
+            throw new MissingRepositoryException();
         }
+        this.repositoryPath = repositoryPath;
     }
 
     public GlitObject readObject(String hash){
@@ -32,7 +34,7 @@ public class ObjectReader {
         Path filePath = dirPath.resolve(fileName);
 
         if(!Files.exists(filePath)){
-            throw new RuntimeException("No object with provided hash");
+            throw new GlitException("No object with provided hash: " + hash);
         }
 
         try(InflaterInputStream iis = new InflaterInputStream(Files.newInputStream(filePath));)
@@ -58,13 +60,12 @@ public class ObjectReader {
                 case "commit":
                     return new Commit(content);
                 default:
-                    throw new RuntimeException("Wrong type of object");
+                    throw new GlitException("fatal: Wrong type of object");
             }
 
 
         } catch (IOException e) {
-            System.err.println("Cannot read file content");
-            throw new RuntimeException(e);
+            throw new GlitException("fatal: Cannot read file content for hash " + hash,e);
         }
 
     }
