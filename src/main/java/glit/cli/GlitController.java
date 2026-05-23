@@ -216,7 +216,10 @@ public class GlitController {
                 return new Call(functionName,null,arguments);
             }
             case "status" ->{
-                return null;
+                return new Call(functionName,null,null);
+            }
+            case "log"->{
+                return new Call(functionName,null,null);
             }
 
             default -> {
