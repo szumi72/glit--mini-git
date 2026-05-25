@@ -216,7 +216,10 @@ public class GlitController {
                 return new Call(functionName,null,arguments);
             }
             case "status" ->{
-                return null;
+                return new Call(functionName,null,null);
+            }
+            case "log"->{
+                return new Call(functionName,null,null);
             }
 
             default -> {
@@ -254,8 +257,12 @@ public class GlitController {
                 Repository.catFile(cliCall);
             }
             case "status" ->{
-                System.out.println("statu executed");
+                System.out.println("status executed");
                 Repository.status();
+            }
+            case "log" ->{
+                System.out.println("log executed");
+                Repository.log();
             }
             
         }

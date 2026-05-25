@@ -1,6 +1,7 @@
 package glit.service;
 
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -511,6 +512,47 @@ public class Repository {
     }
 
     //---------glit status----------//
+
+    //----glit log-------------//
+    public static void log(){
+        REPOSITORY_PATH = whereIsRepo();
+        if (REPOSITORY_PATH == null) return;
+
+        Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
+        try{
+            if(!Files.exists(headPath) || Files.readString(headPath).isEmpty() ){
+                System.out.println("No commits");
+                return;
+            }
+
+            String contentHead = Files.readString(headPath).trim();
+            ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+            Commit commit;
+            if(contentHead.startsWith("ref: ")){
+                String commitPathStr = contentHead.replace("ref: ","").trim();
+                Path commitPath = REPOSITORY_PATH.resolve(".glit").resolve(commitPathStr);
+                commit = (Commit) reader.readObject(Files.readString(commitPath));
+            }else{
+                commit = (Commit) reader.readObject(contentHead);
+            }
+            int counter=0;
+            while(commit!=null && counter<10){
+                commit.printContent();
+                String parentHash = commit.getParentHash();
+                if(parentHash==null || parentHash.isEmpty()){
+                    break;
+                }
+                commit = (Commit) reader.readObject(parentHash);
+                counter++;
+            }
+        }catch (IOException e){
+            System.out.println("log failed");
+            return;
+        }catch (MissingRepositoryException e){
+            System.out.println(e.getMessage());
+        }
+    }
+    //-----glit log//
 
      //main only for personal tests
     public static void main(String[] args) throws Exception {
