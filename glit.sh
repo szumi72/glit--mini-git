@@ -5,7 +5,7 @@ set -euo pipefail
 [ -f ~/.profile ] && source ~/.profile
 
 # special function to rebuild - delete from production code
-if [ $1 == 'rebuild' ]; then
+if [[ $# -eq 1  &&  $1 == 'rebuild' ]]; then
     mvn -f $GLIT_PATH/pom.xml package
     exit
 fi

@@ -191,7 +191,7 @@ public class Repository {
     private static boolean isChanged(GlitIndex index, Path file) throws IOException {
         IndexEntry entry = findInIndex(index, file);
         if (entry == null) {
-            System.out.println("not found in index");
+//            System.out.println("not found in index");
             return true;
         }
         Path attrPath = REPOSITORY_PATH.resolve(file);
@@ -200,48 +200,48 @@ public class Repository {
 
         // OS independent
         if (entry.getCtimeSec() != attrs.creationTime().to(TimeUnit.SECONDS)) {
-            System.out.println("csec");
+//            System.out.println("csec");
             return true;
         }
         if (entry.getCtimeNsec() != ((attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L))) {
             System.out.println(entry.getCtimeNsec() + "   " + attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L);
-            System.out.println("cnsec");
+//            System.out.println("cnsec");
             return true;
         }
         if (entry.getMtimeSec() != attrs.lastModifiedTime().to(TimeUnit.SECONDS)) {
-            System.out.println("msec");
+//            System.out.println("msec");
             return true;
         }
         if (entry.getMtimeNsec() != attrs.lastModifiedTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L) {
-            System.out.println("mnsec");
+//            System.out.println("mnsec");
             return true;
         }
 
         // OS dependent
         if (entry.getDev() != (long) Files.getAttribute(attrPath, "unix:dev")) {
-            System.out.println("dev");
+//            System.out.println("dev");
             return true;
         }
         if (entry.getIno() != (long) Files.getAttribute(attrPath, "unix:ino")) {
-            System.out.println("ino");
+//            System.out.println("ino");
             return true;
         }
         if (entry.getMode() != (int) Files.getAttribute(attrPath, "unix:mode")) {
-            System.out.println("mode");
+//            System.out.println("mode");
             return true;
         }
         if (entry.getUid() != (int) Files.getAttribute(attrPath, "unix:uid")) {
-            System.out.println("uid");
+//            System.out.println("uid");
             return true;
         }
         if (entry.getGid() != (int) Files.getAttribute(attrPath, "unix:gid")) {
-            System.out.println("gid");
+//            System.out.println("gid");
             return true;
         }
 
         // OS independent
         if (entry.getFileSize() != attrs.size()) {
-            System.out.println("size");
+//            System.out.println("size");
             return true;
         }
 
@@ -276,7 +276,7 @@ public class Repository {
                 }
                 // System.out.println(el);
                 if (isChanged(currIndex, arg)) {
-                    System.out.println(arg + " is changed");
+//                    System.out.println(arg + " is changed");
                     entries.removeIf(e -> e.getPath().equals(arg.toString()));
                     newIndex.add(IndexEntry.createFromPath(arg, REPOSITORY_PATH));
                     isAnyChanged = true;
