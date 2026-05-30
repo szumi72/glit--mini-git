@@ -35,22 +35,12 @@ import glit.util.IndexUtils;
  */
 public class Repository {
 
+    private static final List<String> ignorePatterns = new ArrayList<>();
     /**
      * Ścieżka do katalogu głównego repozytorium.
      */
     public static Path REPOSITORY_PATH;
     private static Path INDEX_PATH;
-    private static final List<String> ignorePatterns = new ArrayList<>();
-
-    /**
-     * Zwraca ścieżkę do repozytorium.
-     *
-     * @return ścieżka do repozytorium
-     */
-    public Path getRepositoryPath() {
-        // REPOSITORY_PATH = whereIsRepo();
-        return REPOSITORY_PATH;
-    }
 
     /**
      * Znajduje ścieżkę do najbliższego repozytorium Glit, przeszukując w górę
@@ -89,10 +79,7 @@ public class Repository {
         REPOSITORY_PATH = Path.of(System.getProperty("user.dir"));
 
         // create dirs
-        Path dirArray[] = {
-            REPOSITORY_PATH.resolve(".glit/objects"),
-            REPOSITORY_PATH.resolve(".glit/refs")
-        };
+        Path dirArray[] = {REPOSITORY_PATH.resolve(".glit/objects"), REPOSITORY_PATH.resolve(".glit/refs")};
         for (Path d : dirArray) {
             try {
                 Files.createDirectories(d);
@@ -104,11 +91,7 @@ public class Repository {
         }
 
         // create files
-        Path fileArray[] = {
-            REPOSITORY_PATH.resolve(".glit/config"),
-            REPOSITORY_PATH.resolve(".glit/HEAD"),
-            REPOSITORY_PATH.resolve(".glit/description")
-        };
+        Path fileArray[] = {REPOSITORY_PATH.resolve(".glit/config"), REPOSITORY_PATH.resolve(".glit/HEAD"), REPOSITORY_PATH.resolve(".glit/description")};
         for (Path f : fileArray) {
             try {
                 Files.createFile(f);
@@ -131,10 +114,7 @@ public class Repository {
         }
         // .glitignore with standard content
         Path glitignorePath = REPOSITORY_PATH.resolve(".glitignore");
-        try (BufferedWriter writer
-                = Files.newBufferedWriter(glitignorePath, StandardOpenOption.CREATE,
-                        StandardOpenOption.WRITE,
-                        StandardOpenOption.TRUNCATE_EXISTING)) {
+        try (BufferedWriter writer = Files.newBufferedWriter(glitignorePath, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
             writer.write(".glit/");
             writer.newLine();
             writer.write(".glitignore");
@@ -146,7 +126,7 @@ public class Repository {
     }
 
     // --- ADD functionality ---
-    // currently only: 
+    // currently only:
     // - directory/
     // - *.ext
     // - file
@@ -203,9 +183,7 @@ public class Repository {
 
     private static IndexEntry findInIndex(GlitIndex index, Path file) throws IOException {
         List<IndexEntry> entries = index.getEntries();
-        Optional<IndexEntry> opt = entries.stream()
-                .filter(e -> e.getPath().equals(file.toString()))
-                .findFirst();
+        Optional<IndexEntry> opt = entries.stream().filter(e -> e.getPath().equals(file.toString())).findFirst();
         IndexEntry entry = opt.orElse(null);
         return entry;
     }
@@ -218,7 +196,7 @@ public class Repository {
         }
         Path attrPath = REPOSITORY_PATH.resolve(file);
         BasicFileAttributes attrs = Files.readAttributes(attrPath, BasicFileAttributes.class);
-        
+
 
         // OS independent
         if (entry.getCtimeSec() != attrs.creationTime().to(TimeUnit.SECONDS)) {
@@ -284,7 +262,7 @@ public class Repository {
 
         INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
         boolean indexExists = Files.exists(INDEX_PATH) && Files.size(INDEX_PATH) > 0;
-        GlitIndex newIndex = new GlitIndex(0); // using version 0 of Glit
+        GlitIndex newIndex = new GlitIndex(2); // using version 2 of Glit - to be compatible with git
         ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
         if (indexExists) {
             boolean isAnyChanged = false;
@@ -308,10 +286,12 @@ public class Repository {
             if (!isAnyChanged) {
                 System.out.println("Nothing was added - all files has been already staged.");
                 return;
-            }else{
+            } else {
                 newIndex.addAll(entries);
             }
-        } else {
+        } else
+//        index somehow not existing
+        {
 
             // Files.write(INDEX_PATH, new byte[0], StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING); -> in IndexUtils there is doubling
 
@@ -327,7 +307,7 @@ public class Repository {
 
             // co z usunietymi plikami? -> chyba przy commit się stworzy nowy GlitIndex, w którym ich nie będzie
         }
-        //wyjelam ten blok poza else żeby index zapisywał się zawsze nie ważne czy jest nowy czy nadpisany
+        // writing newIndex - if nothing is changed the function will return with info (look up)
         try {
             IndexUtils.write(newIndex, INDEX_PATH);
         } catch (NoSuchAlgorithmException e) {
@@ -381,9 +361,7 @@ public class Repository {
 
         try {
             String headContent = Files.readString(headPath).trim();
-            String branchName = headContent.startsWith("ref: refs/heads/")
-                    ? headContent.replace("ref: refs/heads/", "")
-                    : "detached HEAD";
+            String branchName = headContent.startsWith("ref: refs/heads/") ? headContent.replace("ref: refs/heads/", "") : "detached HEAD";
             System.out.println("On branch " + branchName);
         } catch (IOException e) {
             System.out.println("On branch unknown");
@@ -421,9 +399,7 @@ public class Repository {
     private static Map<String, String> mapWorkingDirectory() {
         Map<String, String> dirMap = new HashMap<>();
         try (Stream<Path> paths = Files.walk(REPOSITORY_PATH)) {
-            paths.filter(Files::isRegularFile).filter(path -> (!path.startsWith(REPOSITORY_PATH.resolve(".glit"))))
-                    .filter(path -> !path.startsWith(REPOSITORY_PATH.resolve(".git")))
-                    .filter(path -> !path.startsWith(REPOSITORY_PATH.resolve("target"))).forEach(path -> {
+            paths.filter(Files::isRegularFile).filter(path -> (!path.startsWith(REPOSITORY_PATH.resolve(".glit")))).filter(path -> !path.startsWith(REPOSITORY_PATH.resolve(".git"))).filter(path -> !path.startsWith(REPOSITORY_PATH.resolve("target"))).forEach(path -> {
                 try {
                     byte[] content = Files.readAllBytes(path);
                     Blob temp = new Blob(content);
@@ -605,6 +581,16 @@ public class Repository {
         System.out.println("Working");
         // init();
 
+    }
+
+    /**
+     * Zwraca ścieżkę do repozytorium.
+     *
+     * @return ścieżka do repozytorium
+     */
+    public Path getRepositoryPath() {
+        // REPOSITORY_PATH = whereIsRepo();
+        return REPOSITORY_PATH;
     }
 
 }
