@@ -2,6 +2,7 @@ package glit.service;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,6 +18,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import glit.cli.Call;
+import glit.exceptions.GlitException;
+import glit.exceptions.MissingRepositoryException;
 import glit.model.Blob;
 import glit.model.Commit;
 import glit.model.GlitIndex;
@@ -329,7 +332,7 @@ public class Repository {
             if (obj != null) {
                 obj.printContent();
             }
-        } catch (IOException | IndexOutOfBoundsException e) {
+        }catch (IndexOutOfBoundsException | MissingRepositoryException e) {
             System.err.println("cat-file err " + e);
         }
     }
@@ -342,9 +345,7 @@ public class Repository {
 
         //przypisanie sciezki do repo
         REPOSITORY_PATH = whereIsRepo();
-        if (REPOSITORY_PATH == null) {
-            return;
-        }
+        if (REPOSITORY_PATH == null || !Files.exists(REPOSITORY_PATH.resolve(".glit"))) return;
 
         INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
@@ -374,26 +375,20 @@ public class Repository {
             for (String path : indexMap.keySet()) {
                 System.out.println("\tnew file:\t" + path);
             }
-        } else {
-
+        }else{
             Tree headTree = getHEADTree(commitHashHead);
-            Map<String, String> headMap = mapHeadFiles(headTree, "");
-
-            String output = produceStatusOutput(indexMap, headMap, wdMap);
-
+            Map<String,String> headMap = mapHeadFiles(headTree,"");
+            String output = produceStatusOutput(indexMap, headMap);
             if (output.isEmpty()) {
                 System.out.println("\tnothing staged for commit");
             } else {
                 System.out.print(output);
             }
-
-        }
+        }   
 
         System.out.println();
-
         String untrackedAndUnstaged = produceUntackedFilesOutput(indexMap, wdMap);
         System.out.print(untrackedAndUnstaged);
-
     }
 
     private static Map<String, String> mapWorkingDirectory() {
@@ -418,25 +413,24 @@ public class Repository {
     }
 
     //output metody status porównyje mapy plików z indexu i commita w headzie
-    private static String produceStatusOutput(Map<String, String> indexMap, Map<String, String> headMap, Map<String, String> wdMap) {
+    private static String produceStatusOutput(Map<String, String> indexMap,Map<String, String> headMap){
         StringBuilder output = new StringBuilder();
 
-        for (String path : indexMap.keySet()) {
-            if (!headMap.containsKey(path)) {
-                //"\n" działa na linuxach a na windowsach nie koniecznie
+        for(String path:indexMap.keySet()){
+            if(!headMap.containsKey(path)){
+                    //"\n" działa na linuxach a na windowsach nie koniecznie
                 output.append("\tnew file:\t").append(path).append(System.lineSeparator());
 
-            } else if (!headMap.get(path).equals(indexMap.get(path))) {
+            }else if(!headMap.get(path).equals(indexMap.get(path))){
                 output.append("\tmodified:\t").append(path).append(System.lineSeparator());
             }
-
+                
         }
-        for (String path : headMap.keySet()) {
-            if (!indexMap.containsKey(path)) {
+        for(String path:headMap.keySet()){
+            if(!indexMap.containsKey(path)){
                 output.append("deleted: ").append(path).append(System.lineSeparator());
             }
         }
-
         return output.toString();
 
     }
@@ -445,31 +439,23 @@ public class Repository {
 
         StringBuilder changesNotStaged = new StringBuilder();
         StringBuilder untrackedFiles = new StringBuilder();
-
-        for (String path : wdMap.keySet()) {
-            if (indexMap.containsKey(path) && !indexMap.get(path).equals(wdMap.get(path))) {
-                changesNotStaged.append("\t").append(path).append(System.lineSeparator());
+            for(String path:wdMap.keySet()){
+                if(indexMap.containsKey(path) && !indexMap.get(path).equals(wdMap.get(path))){                    
+                    changesNotStaged.append("\t").append(path).append(System.lineSeparator());                   
+                }
             }
-
-        }
-
-        for (String path : wdMap.keySet()) {
-            if (!indexMap.containsKey(path)) {
-                untrackedFiles.append("\t").append(path).append(System.lineSeparator());
+            for(String path:wdMap.keySet()){
+                if(!indexMap.containsKey(path)){
+                    untrackedFiles.append("\t").append(path).append(System.lineSeparator());
+                }
             }
-
-        }
-
         StringBuilder finalOutput = new StringBuilder();
-
-        if (changesNotStaged.length() > 0) {
+        if (!changesNotStaged.isEmpty()) {
             finalOutput.append("Changes not staged for commit:").append(System.lineSeparator()).append(changesNotStaged).append(System.lineSeparator());
         }
-
-        if (untrackedFiles.length() > 0) {
+        if (!untrackedFiles.isEmpty()) {
             finalOutput.append("Untracked files:").append(System.lineSeparator()).append(untrackedFiles).append(System.lineSeparator());
         }
-
         return finalOutput.toString();
     }
 
@@ -494,9 +480,10 @@ public class Repository {
                 lastCommitPath = temp;
             }
             return REPOSITORY_PATH.resolve(".glit").resolve(lastCommitPath);
-
-        } catch (IOException e) {
-            throw new RuntimeException("Nie udało się odczytać pliku HEAD");
+             
+        }catch (IOException e){
+            System.err.println("Nie udało się odczytać pliku HEAD");
+            return null;
         }
     }
 
@@ -507,25 +494,23 @@ public class Repository {
             if (commit instanceof Commit commit1) {
                 String treeHash = commit1.getTreeHash();
                 Object tree = reader.readObject(treeHash);
-                return (Tree) tree;
-            } else {
-                throw new RuntimeException("HEAD has bad syntax");
+                return (Tree)tree;
+            }else{
+                System.err.println("HEAD has bad syntax");
+                return null;
             }
 
-        } catch (IOException e) {
-            throw new RuntimeException("Repository path not found");
+        }catch (MissingRepositoryException e){
+            throw e;
         }
     }
 
-    private static Map<String, String> mapIndexFiles(Path indexPath) {
-        Map<String, String> indexMap = new HashMap<>();
-
-        try {
-
-            if (!Files.exists(indexPath) || Files.size(indexPath) == 0) {
+    private static Map<String,String> mapIndexFiles(Path indexPath){
+        Map<String,String> indexMap = new HashMap<>();
+        try{
+            if(!Files.exists(indexPath) || Files.size(indexPath)==0){                
                 return indexMap;
             }
-
             GlitIndex index = IndexUtils.parse(indexPath);
             List<IndexEntry> indexEntries = index.getEntries();
 
@@ -538,7 +523,6 @@ public class Repository {
             System.err.println("Index not found " + e.getMessage());
         }
         return indexMap;
-
     }
 
     private static Map<String, String> mapHeadFiles(Tree headTree, String prefix) {
@@ -564,19 +548,60 @@ public class Repository {
                     if (object instanceof Tree subTree) {
                         headMap.putAll(mapHeadFiles(subTree, newPath));
                     }
-
-                } catch (IOException e) {
-                    throw new RuntimeException("cannot read object");
+                    
+                }catch (GlitException e){
+                    throw new GlitException("cannot read object");
                 }
             }
-
         }
 
         return headMap;
     }
 
     //---------glit status----------//
-    //main only for personal tests
+
+    //----glit log-------------//
+    public static void log(){
+        REPOSITORY_PATH = whereIsRepo();
+        if (REPOSITORY_PATH == null) return;
+
+        Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
+        try{
+            if(!Files.exists(headPath) || Files.readString(headPath).isEmpty() ){
+                System.out.println("No commits");
+                return;
+            }
+
+            String contentHead = Files.readString(headPath).trim();
+            ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+            Commit commit;
+            if(contentHead.startsWith("ref: ")){
+                String commitPathStr = contentHead.replace("ref: ","").trim();
+                Path commitPath = REPOSITORY_PATH.resolve(".glit").resolve(commitPathStr);
+                commit = (Commit) reader.readObject(Files.readString(commitPath));
+            }else{
+                commit = (Commit) reader.readObject(contentHead);
+            }
+            int counter=0;
+            while(commit!=null && counter<10){
+                commit.printContent();
+                String parentHash = commit.getParentHash();
+                if(parentHash==null || parentHash.isEmpty()){
+                    break;
+                }
+                commit = (Commit) reader.readObject(parentHash);
+                counter++;
+            }
+        }catch (IOException e){
+            System.out.println("log failed");
+            return;
+        }catch (MissingRepositoryException e){
+            System.out.println(e.getMessage());
+        }
+    }
+    //-----glit log//
+
+     //main only for personal tests
     public static void main(String[] args) throws Exception {
         System.out.println("Working");
         // init();
