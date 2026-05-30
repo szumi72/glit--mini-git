@@ -48,18 +48,19 @@ public class IndexEntry {
         this.path = path;
     }
 
-    public IndexEntry(Path path, byte[] hash) throws IOException {
-        BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+    public IndexEntry(Path path, Path repositoryPath, byte[] hash) throws IOException {
+        Path attrPath = repositoryPath.resolve(path);
+        BasicFileAttributes attrs = Files.readAttributes(attrPath, BasicFileAttributes.class);
         this.ctimeSec = attrs.creationTime().to(TimeUnit.SECONDS);
-        this.ctimeNsec = attrs.creationTime().to(TimeUnit.NANOSECONDS);
+        this.ctimeNsec = attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L;
         this.mtimeSec = attrs.lastModifiedTime().to(TimeUnit.SECONDS);
-        this.mtimeNsec = attrs.lastModifiedTime().to(TimeUnit.NANOSECONDS);
-        this.dev = (long) Files.getAttribute(path, "unix:dev");
-        this.ino = (long) Files.getAttribute(path, "unix:ino");
-        this.mode = (int) Files.getAttribute(path, "unix:mode");
-        this.uid = (int) Files.getAttribute(path, "unix:uid");
-        this.gid = (int) Files.getAttribute(path, "unix:gid");
-        this.fileSize = 0;
+        this.mtimeNsec = attrs.lastModifiedTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L;
+        this.dev = (long) Files.getAttribute(attrPath, "unix:dev");
+        this.ino = (long) Files.getAttribute(attrPath, "unix:ino");
+        this.mode = (int) Files.getAttribute(attrPath, "unix:mode");
+        this.uid = (int) Files.getAttribute(attrPath, "unix:uid");
+        this.gid = (int) Files.getAttribute(attrPath, "unix:gid");
+        this.fileSize = attrs.size();
         this.objectId = hash;
         this.path = path.toString();
     }
@@ -151,15 +152,19 @@ public class IndexEntry {
 
     public static IndexEntry createFromPath(Path path, Path repositoryPath) throws IOException {
         IndexEntry entry = null;
-        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+        try (FileChannel channel = FileChannel.open(repositoryPath.resolve(path), StandardOpenOption.READ)) {
+            // System.out.println("DEBUG");
             ByteBuffer buffer = ByteBuffer.allocate((int) channel.size());
             buffer.order(ByteOrder.BIG_ENDIAN);
             channel.read(buffer);
             GlitObject o = new Blob(buffer.array());
             ObjectWriter writer = new ObjectWriter(repositoryPath);
             String hash = writer.saveObject(o);
-            entry = new IndexEntry(path, HashUtils.hexStringToByteArray(hash));
-        }catch(IOException e){throw new IOException("Couldn't create Blob from "+path);}
+            entry = new IndexEntry(path, repositoryPath, HashUtils.hexStringToByteArray(hash));
+        }catch(IOException e){
+            throw e;
+            //throw new IOException("Couldn't create Blob from "+path);
+            }
         return entry;
     }
 

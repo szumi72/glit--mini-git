@@ -13,31 +13,41 @@ import java.util.stream.Stream;
 import glit.service.Repository;
 
 public class GlitController {
-
+    private final static Path repositoryPath = Repository.whereIsRepo();
     
     public static List<Path> expandWildcard(String pattern) throws IOException {
         Path dir = Path.of(System.getProperty("user.dir"));
+        // System.out.println(dir + " " + pattern);
+        Path diffPath = repositoryPath.relativize(dir);
+        // System.out.println(Path.of(System.getProperty("user.dir")));
         List<Path> result = new ArrayList<>();
 
         if (pattern.equals(".") || pattern.equals("./")) {
             pattern = "**";
         }
-        
+
+        if(Files.isDirectory(Path.of(pattern), LinkOption.NOFOLLOW_LINKS)){
+            pattern = pattern + "/**";
+        }
+
         try {
             PathMatcher matcher = FileSystems.getDefault()
-                .getPathMatcher("glob:" + pattern);
+                    .getPathMatcher("glob:" + pattern);
             try (Stream<Path> stream = Files.walk(dir)) {
                 stream
                         .filter(Files::isRegularFile)
                         .map(dir::relativize)
                         .filter(p -> matcher.matches(p))
+                        .map(p -> diffPath.resolve(p))
                         .forEach(result::add);
             }
-        }catch(Exception e){ System.out.println(pattern + " not recognized");}
+        } catch (Exception e) {
+            System.out.println(pattern + " not recognized");
+        }
 
         return result;
     }
-
+    
     public static Call validateAndParseCommandLineArgs(String[] args) throws IOException {
         if (args.length < 1) {
             String s = """
@@ -48,7 +58,16 @@ public class GlitController {
             System.out.println(s);
             return null;
         }
+
+        
         int INDEX_OF_FUNCTION = 0;
+
+        // no repo
+        if(repositoryPath == null && !args[INDEX_OF_FUNCTION].equals("init")){
+            System.out.println("No glit repository found. Create one with: glit init");
+            return null;
+        }
+
         String functionName = args[INDEX_OF_FUNCTION];
         List<String> flags = new ArrayList<>();
         List<Object> arguments = new ArrayList<>();
@@ -64,6 +83,7 @@ public class GlitController {
             }
 
             case "add" -> {
+                
                 // no arguments
                 if (args.length <= INDEX_OF_FUNCTION + 1) {
                     System.out.println("File name not given. \nUsage: glit add <file1> [file2] ...");
@@ -77,7 +97,7 @@ public class GlitController {
                     }
                     // file or files with wildcards not exists
                     Path file = Path.of(args[i]);
-                    if (!Files.exists(file) || Files.isDirectory(file, LinkOption.NOFOLLOW_LINKS)) {
+                    if (Files.isDirectory(file, LinkOption.NOFOLLOW_LINKS) || !Files.exists(file)) {
                         // System.out.println("Expanding wildcard... ");
                         List<Path> files = expandWildcard(args[i]);
                         if (files == null || files.size() < 1) {
@@ -87,7 +107,8 @@ public class GlitController {
                             arguments.addAll(files);
                         }
                     } else {
-                        arguments.add(Path.of(args[i]));
+                        // arguments.add(file);
+                        arguments.add(repositoryPath.relativize(file.toAbsolutePath()));
                     }
                 }
                 return new Call(functionName, null, arguments);
