@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import glit.cli.Call;
+import glit.cli.GlitController;
 import glit.exceptions.GlitException;
 import glit.exceptions.MissingRepositoryException;
 import glit.model.Blob;
@@ -605,9 +606,74 @@ public class Repository {
     public static void main(String[] args) throws Exception {
         System.out.println("Working");
         // init();
+        String[] ar = {"glit","branch"};
+        Call cliCall = GlitController.validateAndParseCommandLineArgs(ar);
+        Repository.branch(cliCall);
 
     }
 
+    //-------------glit branch---------------//
+    public static void branch(Call cliCall){
+
+        REPOSITORY_PATH = whereIsRepo();
+        if (REPOSITORY_PATH == null) return;
+        Path brachesPath = REPOSITORY_PATH.resolve(".glit/refs/heads/");
+        Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
+        Path currentBranchPath = getPathFromHead(headPath);
+
+        //wyslietlanie branchy
+        if(cliCall.getArguments() == null || cliCall.getArguments().isEmpty()){
+            try (
+                Stream<Path> paths = Files.list(brachesPath);){
+                paths.forEach(path ->{String branchName = path.getFileName().toString();
+                    if(currentBranchPath!= null && Files.exists(currentBranchPath) && branchName.equals( currentBranchPath.getFileName().toString())){
+
+                        System.out.println("*   " + branchName);
+                    }else{
+                        System.out.println("\t" + branchName);
+                    }
+                });
+
+            }catch (IOException e){
+                System.err.println("Error while reading from files");
+            }
+        }else if(cliCall.getArguments().size() == 1){
+
+            String newBranchName = cliCall.getArguments().get(0).toString();
+
+            if(Files.exists(brachesPath.resolve(newBranchName))){
+                System.out.println("Branch with this name already exists");
+                return;
+            }
+            Path newBranchPath = brachesPath.resolve(newBranchName);
+            try {
+                String currentCommitHash = "";
+                String headContent = Files.readString(headPath).trim();
+
+                if (headContent.startsWith("ref: ")) {
+
+                    if (currentBranchPath != null && Files.exists(currentBranchPath)) {
+                        currentCommitHash = Files.readString(currentBranchPath).trim();
+                    }
+                } else {
+                    currentCommitHash = headContent;
+                }
+
+                if (currentCommitHash.isEmpty()) {
+                    System.out.println("fatal: Cannot create branch because there are no commits yet.");
+                    return;
+                }
+
+                Files.writeString(newBranchPath, currentCommitHash);
+                System.out.println("Branch '" + newBranchName + "' created at commit " + currentCommitHash.substring(0, 7) + "...");
+
+            } catch (IOException e) {
+                System.out.println("fatal: glit branch error while creating file");
+            }
+
+        }
+    }
+    //-----------glit branch------------//
     /**
      * Zwraca ścieżkę do repozytorium.
      *
