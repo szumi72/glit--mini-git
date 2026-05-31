@@ -320,6 +320,12 @@ public class Repository {
 
     }
 
+    /**
+     * Prints the content of an object (e.g., a Blob) stored in the Glit database based on the provided hash.
+     * The command requires exactly one argument representing the object's hash.
+     *
+     * @param cliCall the object containing parsed command-line arguments
+     */
     public static void catFile(Call cliCall) {
         REPOSITORY_PATH = whereIsRepo();
         if (cliCall.getArguments().size() != 1) {
@@ -339,10 +345,18 @@ public class Repository {
     }
 
     /**
-     * Method that print current status of files in the project
+     * Checks and displays the current state of the repository (equivalent to 'git status').
+     * <p>
+     * This method informs the user about:
+     * <ul>
+     * <li>The current active branch (or detached HEAD state)</li>
+     * <li>Changes staged for commit (Changes to be committed)</li>
+     * <li>Changes tracked but modified locally (Changes not staged for commit)</li>
+     * <li>Untracked files in the working directory</li>
+     * </ul>
+     * </p>
      */
-    //----Glit Status------//
-    public static void status() {
+     public static void status() {
 
         //przypisanie sciezki do repo
         REPOSITORY_PATH = whereIsRepo();
@@ -392,6 +406,12 @@ public class Repository {
         System.out.print(untrackedAndUnstaged);
     }
 
+    /**
+     * Scans the working directory and maps regular files to their current content hashes.
+     * It ignores internal metadata directories (.glit, .git) and build directories (target).
+     *
+     * @return a map containing relative file paths as keys and their corresponding content hashes as values
+     */
     private static Map<String, String> mapWorkingDirectory() {
         Map<String, String> dirMap = new HashMap<>();
         try (Stream<Path> paths = Files.walk(REPOSITORY_PATH)) {
@@ -413,7 +433,14 @@ public class Repository {
         return dirMap;
     }
 
-    //output metody status porównyje mapy plików z indexu i commita w headzie
+    /**
+     * Compares the index (staging area) with the latest commit (HEAD).
+     * Generates a formatted string detailing new, modified, or deleted files.
+     *
+     * @param indexMap a map of files currently in the index [path -> hash]
+     * @param headMap  a map of files in the latest HEAD commit [path -> hash]
+     * @return a formatted string representing the "Changes to be committed" section
+     */
     private static String produceStatusOutput(Map<String, String> indexMap,Map<String, String> headMap){
         StringBuilder output = new StringBuilder();
 
@@ -436,6 +463,14 @@ public class Repository {
 
     }
 
+    /**
+     * Compares the working directory with the index to detect untracked files
+     * and local modifications that have not yet been staged.
+     *
+     * @param indexMap a map of files currently in the index [path -> hash]
+     * @param wdMap    a map of files existing in the working directory [path -> hash]
+     * @return a formatted string describing unstaged modifications and untracked files
+     */
     private static String produceUntackedFilesOutput(Map<String, String> indexMap, Map<String, String> wdMap) {
 
         StringBuilder changesNotStaged = new StringBuilder();
@@ -460,6 +495,12 @@ public class Repository {
         return finalOutput.toString();
     }
 
+    /**
+     * Retrieves the commit hash stored inside a specific branch reference file.
+     *
+     * @param commitPath the path to the branch file (e.g., .glit/refs/heads/main)
+     * @return the commit hash as a String, or an empty string if reading fails
+     */
     private static String getLastCommitHash(Path commitPath) {
         try {
             return Files.readString(commitPath);
@@ -468,6 +509,14 @@ public class Repository {
         }
     }
 
+
+    /**
+     * Parses the HEAD file and resolves the full system path to the current branch file
+     * that HEAD points to.
+     *
+     * @param headPath the path to the .glit/HEAD file
+     * @return the path to the active branch reference file, or a path pointing directly to an object hash in detached HEAD mode
+     */
     private static Path getPathFromHead(Path headPath) {
         if (!Files.exists(headPath)) {
             return null;
@@ -488,6 +537,13 @@ public class Repository {
         }
     }
 
+    /**
+     * Retrieves the root Tree object associated with the given head commit hash.
+     *
+     * @param headCommitHash the hash of the commit from which to extract the root tree
+     * @return a Tree object representing the project file structure at that commit snapshot
+     * @throws MissingRepositoryException if the repository is not initialized properly
+     */
     private static Tree getHEADTree(String headCommitHash) {
         try {
             ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
@@ -506,6 +562,13 @@ public class Repository {
         }
     }
 
+
+    /**
+     * Parses the binary index file (.glit/index) and converts it into a flat file map.
+     *
+     * @param indexPath the path to the index file
+     * @return a map containing file paths and their corresponding hex string hashes
+     */
     private static Map<String,String> mapIndexFiles(Path indexPath){
         Map<String,String> indexMap = new HashMap<>();
         try{
@@ -526,6 +589,16 @@ public class Repository {
         return indexMap;
     }
 
+
+    /**
+     * Recursively traverses a Git Tree object and builds a flat map of all nested
+     * files (Blobs) with their full relative paths.
+     *
+     * @param headTree the current tree object being analyzed
+     * @param prefix   the accumulated parent directory path prefix
+     * @return a map of all nested files discovered in the tree structure [full_path -> hash]
+     * @throws GlitException if an error occurs while reading sub-objects from disk
+     */
     private static Map<String, String> mapHeadFiles(Tree headTree, String prefix) {
         Map<String, String> headMap = new HashMap<>();
         if (headTree == null) {
@@ -562,6 +635,11 @@ public class Repository {
     //---------glit status----------//
 
     //----glit log-------------//
+
+    /**
+     * Traverses the commit history backwards, starting from the current HEAD state.
+     * Prints the content metadata of up to 10 recent commits by following parent hashes.
+     */
     public static void log(){
         REPOSITORY_PATH = whereIsRepo();
         if (REPOSITORY_PATH == null) return;
@@ -613,6 +691,21 @@ public class Repository {
     }
 
     //-------------glit branch---------------//
+
+    /**
+     * Handles branch management operations (equivalent to 'git branch').
+     * <p>
+     * Operates in two distinct modes depending on provided arguments:
+     * <ol>
+     * <li><b>No arguments:</b> Scans and lists all existing branch reference files in refs/heads,
+     * highlighting the currently active branch with a leading "*" symbol.</li>
+     * <li><b>One argument:</b> Creates a new branch reference file pointing to the current commit,
+     * ensuring first that a branch with the requested name does not already exist.</li>
+     * </ol>
+     * </p>
+     *
+     * @param cliCall the object containing parsed command-line arguments
+     */
     public static void branch(Call cliCall){
 
         REPOSITORY_PATH = whereIsRepo();
