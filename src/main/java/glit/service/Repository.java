@@ -375,25 +375,19 @@ public class Repository {
 
 
 //        parent identifying
-//        TODO RefManager - should return id or NULL when it's the first commit
-        String idParent = RefManager.getCurrentBranchParentCommit();
+        Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
+        String idParent = getLastCommitHash(getPathFromHead(headPath));
 
 //        TODO TreeUtils - should create Tree of Trees and Blobs from List<Path>
-        String idTree = TreeUtils.create(stagedFiles);
+//        String idTree = TreeUtils.create(stagedFiles);
 
-        Commit commit = new Commit(message, idTree, idParent);
+//        Commit commit = new Commit(message, idTree, idParent);
+//        ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
+//        writer.saveObject(commit);
+//
+//        HEAD.setBranch(commit.id());
+//        System.out.println("Podsumowanie");
 
-
-//
-//    # 7. Generowanie unikalnego identyfikatora (SHA-1 / SHA-256) i zapis
-//        id_nowego_commita = generuj_hash_sha(zawartosc_commita)
-//        zapisz_obiekt_w_bazie_git(id_nowego_commita, zawartosc_commita)
-//
-//    # 8. Aktualizacja wskaźnika gałęzi (HEAD)
-//    # Gałąź wskazuje teraz na nasz nowy commit
-//        zapisz_w_pliku(sciezka_do_referencji, id_nowego_commita)
-//
-//    # 9. Podsumowanie dla użytkownika
 //        wyswietl_podsumowanie(id_nowego_commita, wiadomosc_commita, indeks)
 
 
@@ -444,7 +438,7 @@ public class Repository {
         System.out.println("Changes to be committed");
 
         if (commitHashHead.isEmpty()) {
-            //jezeli commit jest pusty to wszsytko jest wypisywane jako nowe pliki
+            //jezeli commit jest pusty to wszystko jest wypisywane jako nowe pliki
             for (String path : indexMap.keySet()) {
                 System.out.println("\tnew file:\t" + path);
             }
