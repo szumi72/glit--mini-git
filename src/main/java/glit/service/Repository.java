@@ -9,12 +9,15 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import glit.cli.Call;
@@ -253,6 +256,17 @@ public class Repository {
 
     }
 
+    /**
+     * Method that adds files to index.
+     * If file is not staged yet, it will be added,
+     * if it is staged but changed since last staging, it will be updated,
+     * otherwise it will be left unchanged.
+     * If file is ignored, it will be skipped.
+     * If no files are added, method will return with info.
+     *
+     * @param cliCall
+     * @throws IOException
+     */
     public static void add(Call cliCall) throws IOException {
         REPOSITORY_PATH = whereIsRepo();
 
@@ -332,9 +346,56 @@ public class Repository {
             if (obj != null) {
                 obj.printContent();
             }
-        }catch (IndexOutOfBoundsException | MissingRepositoryException e) {
+        } catch (IndexOutOfBoundsException | MissingRepositoryException e) {
             System.err.println("cat-file err " + e);
         }
+    }
+
+    /**
+     * Method that creates new commit with files staged in index.
+     * If there is no commit in head, all staged files will be commited as new files,
+     * otherwise they will be compared to files in head and marked as modified, new or deleted.
+     * After commit, index should be cleared.
+     */
+    public static void commit(Call cliCall) throws IOException {
+
+        List<Path> stagedFiles = IndexUtils.parse(INDEX_PATH).getEntries().stream()
+                .map(e -> Path.of(e.getPath()))
+                .toList();
+        if (stagedFiles.isEmpty()) {
+            System.out.println("Index is empty - nothing to commit. Add your changes first (glit add <file1> [file2] ...)");
+            return;
+        }
+
+        String message = cliCall.getArguments().get(0).toString();
+
+
+//        parent identifying
+//        TODO RefManager - should return id or NULL when it's the first commit
+        String idParent = RefManager.getCurrentBranchParentCommit();
+
+//        TODO TreeUtils - should create Tree of Trees and Blobs from List<Path>
+        String idTree = TreeUtils.create(stagedFiles);
+
+        Commit commit = new Commit(message, idTree, idParent);
+
+
+//
+//    # 7. Generowanie unikalnego identyfikatora (SHA-1 / SHA-256) i zapis
+//        id_nowego_commita = generuj_hash_sha(zawartosc_commita)
+//        zapisz_obiekt_w_bazie_git(id_nowego_commita, zawartosc_commita)
+//
+//    # 8. Aktualizacja wskaźnika gałęzi (HEAD)
+//    # Gałąź wskazuje teraz na nasz nowy commit
+//        zapisz_w_pliku(sciezka_do_referencji, id_nowego_commita)
+//
+//    # 9. Podsumowanie dla użytkownika
+//        wyswietl_podsumowanie(id_nowego_commita, wiadomosc_commita, indeks)
+
+
+
+
+
     }
 
     /**
@@ -375,16 +436,16 @@ public class Repository {
             for (String path : indexMap.keySet()) {
                 System.out.println("\tnew file:\t" + path);
             }
-        }else{
+        } else {
             Tree headTree = getHEADTree(commitHashHead);
-            Map<String,String> headMap = mapHeadFiles(headTree,"");
+            Map<String, String> headMap = mapHeadFiles(headTree, "");
             String output = produceStatusOutput(indexMap, headMap);
             if (output.isEmpty()) {
                 System.out.println("\tnothing staged for commit");
             } else {
                 System.out.print(output);
             }
-        }   
+        }
 
         System.out.println();
         String untrackedAndUnstaged = produceUntackedFilesOutput(indexMap, wdMap);
@@ -413,21 +474,21 @@ public class Repository {
     }
 
     //output metody status porównyje mapy plików z indexu i commita w headzie
-    private static String produceStatusOutput(Map<String, String> indexMap,Map<String, String> headMap){
+    private static String produceStatusOutput(Map<String, String> indexMap, Map<String, String> headMap) {
         StringBuilder output = new StringBuilder();
 
-        for(String path:indexMap.keySet()){
-            if(!headMap.containsKey(path)){
-                    //"\n" działa na linuxach a na windowsach nie koniecznie
+        for (String path : indexMap.keySet()) {
+            if (!headMap.containsKey(path)) {
+                //"\n" działa na linuxach a na windowsach nie koniecznie
                 output.append("\tnew file:\t").append(path).append(System.lineSeparator());
 
-            }else if(!headMap.get(path).equals(indexMap.get(path))){
+            } else if (!headMap.get(path).equals(indexMap.get(path))) {
                 output.append("\tmodified:\t").append(path).append(System.lineSeparator());
             }
-                
+
         }
-        for(String path:headMap.keySet()){
-            if(!indexMap.containsKey(path)){
+        for (String path : headMap.keySet()) {
+            if (!indexMap.containsKey(path)) {
                 output.append("deleted: ").append(path).append(System.lineSeparator());
             }
         }
@@ -439,16 +500,16 @@ public class Repository {
 
         StringBuilder changesNotStaged = new StringBuilder();
         StringBuilder untrackedFiles = new StringBuilder();
-            for(String path:wdMap.keySet()){
-                if(indexMap.containsKey(path) && !indexMap.get(path).equals(wdMap.get(path))){                    
-                    changesNotStaged.append("\t").append(path).append(System.lineSeparator());                   
-                }
+        for (String path : wdMap.keySet()) {
+            if (indexMap.containsKey(path) && !indexMap.get(path).equals(wdMap.get(path))) {
+                changesNotStaged.append("\t").append(path).append(System.lineSeparator());
             }
-            for(String path:wdMap.keySet()){
-                if(!indexMap.containsKey(path)){
-                    untrackedFiles.append("\t").append(path).append(System.lineSeparator());
-                }
+        }
+        for (String path : wdMap.keySet()) {
+            if (!indexMap.containsKey(path)) {
+                untrackedFiles.append("\t").append(path).append(System.lineSeparator());
             }
+        }
         StringBuilder finalOutput = new StringBuilder();
         if (!changesNotStaged.isEmpty()) {
             finalOutput.append("Changes not staged for commit:").append(System.lineSeparator()).append(changesNotStaged).append(System.lineSeparator());
@@ -480,8 +541,8 @@ public class Repository {
                 lastCommitPath = temp;
             }
             return REPOSITORY_PATH.resolve(".glit").resolve(lastCommitPath);
-             
-        }catch (IOException e){
+
+        } catch (IOException e) {
             System.err.println("Nie udało się odczytać pliku HEAD");
             return null;
         }
@@ -494,21 +555,21 @@ public class Repository {
             if (commit instanceof Commit commit1) {
                 String treeHash = commit1.getTreeHash();
                 Object tree = reader.readObject(treeHash);
-                return (Tree)tree;
-            }else{
+                return (Tree) tree;
+            } else {
                 System.err.println("HEAD has bad syntax");
                 return null;
             }
 
-        }catch (MissingRepositoryException e){
+        } catch (MissingRepositoryException e) {
             throw e;
         }
     }
 
-    private static Map<String,String> mapIndexFiles(Path indexPath){
-        Map<String,String> indexMap = new HashMap<>();
-        try{
-            if(!Files.exists(indexPath) || Files.size(indexPath)==0){                
+    private static Map<String, String> mapIndexFiles(Path indexPath) {
+        Map<String, String> indexMap = new HashMap<>();
+        try {
+            if (!Files.exists(indexPath) || Files.size(indexPath) == 0) {
                 return indexMap;
             }
             GlitIndex index = IndexUtils.parse(indexPath);
@@ -548,8 +609,8 @@ public class Repository {
                     if (object instanceof Tree subTree) {
                         headMap.putAll(mapHeadFiles(subTree, newPath));
                     }
-                    
-                }catch (GlitException e){
+
+                } catch (GlitException e) {
                     throw new GlitException("cannot read object");
                 }
             }
@@ -561,13 +622,13 @@ public class Repository {
     //---------glit status----------//
 
     //----glit log-------------//
-    public static void log(){
+    public static void log() {
         REPOSITORY_PATH = whereIsRepo();
         if (REPOSITORY_PATH == null) return;
 
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
-        try{
-            if(!Files.exists(headPath) || Files.readString(headPath).isEmpty() ){
+        try {
+            if (!Files.exists(headPath) || Files.readString(headPath).isEmpty()) {
                 System.out.println("No commits");
                 return;
             }
@@ -575,33 +636,33 @@ public class Repository {
             String contentHead = Files.readString(headPath).trim();
             ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
             Commit commit;
-            if(contentHead.startsWith("ref: ")){
-                String commitPathStr = contentHead.replace("ref: ","").trim();
+            if (contentHead.startsWith("ref: ")) {
+                String commitPathStr = contentHead.replace("ref: ", "").trim();
                 Path commitPath = REPOSITORY_PATH.resolve(".glit").resolve(commitPathStr);
                 commit = (Commit) reader.readObject(Files.readString(commitPath));
-            }else{
+            } else {
                 commit = (Commit) reader.readObject(contentHead);
             }
-            int counter=0;
-            while(commit!=null && counter<10){
+            int counter = 0;
+            while (commit != null && counter < 10) {
                 commit.printContent();
                 String parentHash = commit.getParentHash();
-                if(parentHash==null || parentHash.isEmpty()){
+                if (parentHash == null || parentHash.isEmpty()) {
                     break;
                 }
                 commit = (Commit) reader.readObject(parentHash);
                 counter++;
             }
-        }catch (IOException e){
+        } catch (IOException e) {
             System.out.println("log failed");
             return;
-        }catch (MissingRepositoryException e){
+        } catch (MissingRepositoryException e) {
             System.out.println(e.getMessage());
         }
     }
     //-----glit log//
 
-     //main only for personal tests
+    //main only for personal tests
     public static void main(String[] args) throws Exception {
         System.out.println("Working");
         // init();
