@@ -9,11 +9,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -373,20 +369,19 @@ public class Repository {
 
         String message = cliCall.getArguments().get(0).toString();
 
-
 //        parent identifying
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
         String idParent = getLastCommitHash(getPathFromHead(headPath));
+//        creating tree
+        Tree commitTree = Tree.createAndWriteTree(mapIndexFiles(INDEX_PATH));
 
-//        TODO TreeUtils - should create Tree of Trees and Blobs from List<Path>
-//        String idTree = TreeUtils.create(stagedFiles);
-
-//        Commit commit = new Commit(message, idTree, idParent);
-//        ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
-//        writer.saveObject(commit);
+        Commit commit = new Commit(message, commitTree.getHash(), idParent);
+        ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
+        writer.saveObject(commit);
 //
 //        HEAD.setBranch(commit.id());
-//        System.out.println("Podsumowanie");
+        System.out.println("  [" + commit.getHash().substring(0,5) + "] " + message);
+
 
 //        wyswietl_podsumowanie(id_nowego_commita, wiadomosc_commita, indeks)
 
@@ -652,7 +647,8 @@ public class Repository {
      * @throws GlitException if an error occurs while reading sub-objects from disk
      */
     private static Map<String, String> mapHeadFiles(Tree headTree, String prefix) {
-        Map<String, String> headMap = new HashMap<>();
+//        changed HashMap to TreeMap to get sorted records
+        Map<String, String> headMap = new TreeMap<>();
         if (headTree == null) {
             return headMap;
         }
