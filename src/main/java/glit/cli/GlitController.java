@@ -236,11 +236,19 @@ public class GlitController {
                 arguments.add(args[INDEX_OF_FUNCTION + 1]);
                 return new Call(functionName,null,arguments);
             }
-            case "status" ->{
+            case "status", "log" ->{
                 return new Call(functionName,null,null);
             }
-            case "log"->{
-                return new Call(functionName,null,null);
+            case "branch" ->{
+                if (args.length == 1){
+                    return new Call(functionName,null,null);
+                }else if(args.length == 2){
+                    arguments.add(args[INDEX_OF_FUNCTION+1]);
+                    return new Call(functionName,null,arguments);
+                }else{
+                    System.out.println("Wrong number of arguments. \nUsage: glit branch <branch-name> or glit branch");
+                    return null;
+                }
             }
 
             default -> {
@@ -269,8 +277,9 @@ public class GlitController {
             }
             case "commit" ->
                 System.out.println("commit executed");
-            case "checkout" ->
+            case "checkout" ->{
                 System.out.println("checkout executed");
+            }
             case "merge" ->
                 System.out.println("merge executed");
             case "cat-file" ->{
@@ -285,6 +294,11 @@ public class GlitController {
                 System.out.println("log executed");
                 Repository.log();
             }
+            case "branch" ->{
+                System.out.println("branch executed");
+                Repository.branch(cliCall);
+            }
+
             
         }
     }
