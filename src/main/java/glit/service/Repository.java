@@ -374,23 +374,40 @@ public class Repository {
         String message = cliCall.getArguments().get(0).toString();
 
 //        parent identifying
-//        Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
-//        Path branchRef = getPathFromHead(headPath);
-//        String idParent = getLastCommitHash(branchRef);
+        Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
+        Path branchRef = getPathFromHead(headPath);
+        // when there's no branch or working detached
+        boolean isInObjects = branchRef==null ? false : branchRef.getParent().getParent().equals(REPOSITORY_PATH.resolve(".glit").resolve("objects"));
+        String idParent = branchRef==null ? "" : isInObjects ? REPOSITORY_PATH.resolve(".glit").resolve("objects").relativize(branchRef).toString().replace("/","") : getLastCommitHash(branchRef);
 //        creating tree
         Tree commitTree = Tree.createAndWriteTree(mapIndexFiles(INDEX_PATH));
 
-        Commit commit = new Commit(message, commitTree.getHash(), "idParent");
+        Commit commit = new Commit(message, commitTree.getHash(), idParent);
         ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
         writer.saveObject(commit);
 
-//TODO
-//        HEAD.setBranch(commit.id());
-//        System.out.println(" [" + branchRef.subpath(2, branchRef.getNameCount()) + " " + commit.getHash().substring(0,5) + "] " + message);
-        System.out.println(" [" + commit.getHash().substring(0,6) + "] " + message);
+
+        if(branchRef==null || isInObjects){
+            try(BufferedWriter w = Files.newBufferedWriter(headPath, StandardOpenOption.TRUNCATE_EXISTING)){
+                w.write(commit.getHash());
+                w.newLine();
+            }catch(Exception e){e.printStackTrace();}
+        }else{
+            // when working on branch
+            setLastCommitHash(branchRef, commit.getHash());
+        }
+
+        String branchName="";
+        try {
+            String headContent = Files.readString(headPath).trim();
+            branchName = headContent.startsWith("ref: refs/heads/") ? headContent.replace("ref: refs/heads/", "") : "detached HEAD";
+            System.out.println("On branch " + branchName);
+        } catch (IOException e) {e.printStackTrace();}
+
+        System.out.println(" [" + branchName + " " + commit.getHash().substring(0,7) + "] " + message);
 
 //        index cleaning
-        try(BufferedWriter w = Files.newBufferedWriter(INDEX_PATH , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){}
+        try(BufferedWriter w = Files.newBufferedWriter(INDEX_PATH , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){e.printStackTrace();}
 
     }
 
@@ -559,6 +576,17 @@ public class Repository {
         }
     }
 
+    /**
+     * Stores the commit hash inside a specific branch reference file.
+     * @param commitPath - branch reference file
+     * @param commitHash - hash of a new commit
+     */
+    private static void setLastCommitHash(Path commitPath, String commitHash) {
+        try(BufferedWriter w = Files.newBufferedWriter(commitPath, StandardOpenOption.TRUNCATE_EXISTING)){
+            w.write(commitHash);
+        }catch(Exception e){e.printStackTrace();}
+    }
+
 
     /**
      * Parses the HEAD file and resolves the full system path to the current branch file
@@ -576,17 +604,21 @@ public class Repository {
             String lastCommitPath;
             if (temp.startsWith("ref: ")) {
                 lastCommitPath = temp.split(" ")[1];
-            } else {
-                lastCommitPath = temp;
+                return REPOSITORY_PATH.resolve(".glit").resolve(lastCommitPath);
+            } else if (!temp.isEmpty()) {
+//                was:
+//                lastCommitPath = temp;
+//                because not able to read in detached mode, changed to:
+                return REPOSITORY_PATH.resolve(".glit").resolve("objects").resolve(temp.substring(0,2)).resolve(temp.substring(2));
+            }else{
+                return null;
             }
-            return REPOSITORY_PATH.resolve(".glit").resolve(lastCommitPath);
 
         } catch (IOException e) {
             System.err.println("Nie udało się odczytać pliku HEAD");
             return null;
         }
     }
-
     /**
      * Retrieves the root Tree object associated with the given head commit hash.
      *
