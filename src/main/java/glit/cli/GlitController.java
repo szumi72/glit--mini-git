@@ -275,8 +275,10 @@ public class GlitController {
                 System.out.println("executing add... \n");
                 Repository.add(cliCall);
             }
-            case "commit" ->
-                System.out.println("commit executed");
+            case "commit" ->{
+                System.out.println("executing commit... \n");
+                Repository.commit(cliCall);
+            }
             case "checkout" ->{
                 System.out.println("checkout executed");
             }

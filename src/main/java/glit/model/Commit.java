@@ -63,7 +63,7 @@ public class Commit extends GlitObject{
 
     //TODO
     //to trzeba bedzie ustawic zeby sie gdzies zapisywało i czytało z jakieg pliku
-    private String author = "The best programmist ever";
+    private String author = "The_best_programmist_ever";
     final private long timestamp;
     final private String timezone;
     final private String message;

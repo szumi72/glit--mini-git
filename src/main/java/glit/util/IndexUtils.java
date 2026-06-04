@@ -28,7 +28,6 @@ public class IndexUtils {
         buffer.putInt(entries.size());   // liczba wpisów
 
         // --- ENTRIES ---
-        index.sort();
         for (IndexEntry e : entries) {
             System.out.println("DEBUG - zapisuje entry: "+e.getPath());
             e.write(buffer);

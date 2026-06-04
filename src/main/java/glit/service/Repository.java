@@ -2,7 +2,6 @@ package glit.service;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -358,7 +357,12 @@ public class Repository {
      * After commit, index should be cleared.
      */
     public static void commit(Call cliCall) throws IOException {
-
+        REPOSITORY_PATH=whereIsRepo();
+        INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
+        if(Files.size(INDEX_PATH)==0){
+            System.out.println("Nothing to commit. Add something first (glit add <file1> [file2]...)");
+            return;
+        }
         List<Path> stagedFiles = IndexUtils.parse(INDEX_PATH).getEntries().stream()
                 .map(e -> Path.of(e.getPath()))
                 .toList();
@@ -370,24 +374,23 @@ public class Repository {
         String message = cliCall.getArguments().get(0).toString();
 
 //        parent identifying
-        Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
-        String idParent = getLastCommitHash(getPathFromHead(headPath));
+//        Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
+//        Path branchRef = getPathFromHead(headPath);
+//        String idParent = getLastCommitHash(branchRef);
 //        creating tree
         Tree commitTree = Tree.createAndWriteTree(mapIndexFiles(INDEX_PATH));
 
-        Commit commit = new Commit(message, commitTree.getHash(), idParent);
+        Commit commit = new Commit(message, commitTree.getHash(), "idParent");
         ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
         writer.saveObject(commit);
-//
+
+//TODO
 //        HEAD.setBranch(commit.id());
-        System.out.println("  [" + commit.getHash().substring(0,5) + "] " + message);
+//        System.out.println(" [" + branchRef.subpath(2, branchRef.getNameCount()) + " " + commit.getHash().substring(0,5) + "] " + message);
+        System.out.println(" [" + commit.getHash().substring(0,6) + "] " + message);
 
-
-//        wyswietl_podsumowanie(id_nowego_commita, wiadomosc_commita, indeks)
-
-
-
-
+//        index cleaning
+        try(BufferedWriter w = Files.newBufferedWriter(INDEX_PATH , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){}
 
     }
 
@@ -449,7 +452,7 @@ public class Repository {
         }   
 
         System.out.println();
-        String untrackedAndUnstaged = produceUntackedFilesOutput(indexMap, wdMap);
+        String untrackedAndUnstaged = produceUntrackedFilesOutput(indexMap, wdMap);
         System.out.print(untrackedAndUnstaged);
     }
 
@@ -518,7 +521,7 @@ public class Repository {
      * @param wdMap    a map of files existing in the working directory [path -> hash]
      * @return a formatted string describing unstaged modifications and untracked files
      */
-    private static String produceUntackedFilesOutput(Map<String, String> indexMap, Map<String, String> wdMap) {
+    private static String produceUntrackedFilesOutput(Map<String, String> indexMap, Map<String, String> wdMap) {
 
         StringBuilder changesNotStaged = new StringBuilder();
         StringBuilder untrackedFiles = new StringBuilder();
