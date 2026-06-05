@@ -257,7 +257,7 @@ public class Repository {
      * If file is ignored, it will be skipped.
      * If no files are added, method will return with info.
      *
-     * @param cliCall
+     * @param cliCall - the object containing parsed command-line arguments
      * @throws IOException
      */
     public static void add(Call cliCall) throws IOException {
@@ -355,6 +355,8 @@ public class Repository {
      * If there is no commit in head, all staged files will be commited as new files,
      * otherwise they will be compared to files in head and marked as modified, new or deleted.
      * After commit, index should be cleared.
+     *
+     * @param cliCall -  the object containing parsed command-line arguments
      */
     public static void commit(Call cliCall) throws IOException {
         REPOSITORY_PATH=whereIsRepo();
@@ -850,6 +852,53 @@ public class Repository {
         }
     }
     //-----------glit branch------------//
+
+    /**
+     * checks whether branch of a given name exists (looks in the .glit/refs/heads/ directory)
+     * @param branchName - branch name
+     * @return true if branch named branchName exists
+     */
+    private static boolean branchExists(String branchName){
+        Path branchesPath = REPOSITORY_PATH.resolve(".glit/refs/heads/");
+        return Files.exists(branchesPath.resolve(branchName));
+    }
+
+    public static void checkout(Call cliCall){
+        REPOSITORY_PATH = whereIsRepo();
+        INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
+        boolean creatingNewBranch = cliCall.getFlags().contains("b");
+        if(creatingNewBranch){
+            branch(cliCall);
+        }
+        // check if branch name exists
+        String branchName = (String) cliCall.getArguments().getFirst();
+        if (!branchExists(branchName)){
+            System.out.println("Couldn't switch to branch '" + branchName + "'.");
+            return;
+        }
+
+        // check if there are staged files
+        try {
+            if(Files.size(INDEX_PATH)!=0){
+                System.out.println("There are staged files. Commit them first, then checkout.");
+                return;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // restore file structure from branch's last commit
+//        if(!creatingNewBranch && restoreFileStructureFromBranchLastCommit(branchName)){
+//            System.out.println("Fatal: couldn't restore file structure.");
+//            return;
+//        }
+        Path branchPath = Path.of(REPOSITORY_PATH.resolve(".glit/refs/heads").resolve(branchName.substring(0,2)).resolve(branchName.substring(2)).toUri());
+        // change head
+        setLastCommitHash(branchPath, getLastCommitHash(branchPath));
+
+
+    }
+
     /**
      * Zwraca ścieżkę do repozytorium.
      *
