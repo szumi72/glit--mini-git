@@ -16,13 +16,7 @@ import glit.cli.Call;
 import glit.cli.GlitController;
 import glit.exceptions.GlitException;
 import glit.exceptions.MissingRepositoryException;
-import glit.model.Blob;
-import glit.model.Commit;
-import glit.model.GlitIndex;
-import glit.model.GlitObject;
-import glit.model.IndexEntry;
-import glit.model.Tree;
-import glit.model.TreeEntry;
+import glit.model.*;
 import glit.storage.ObjectReader;
 import glit.storage.ObjectWriter;
 import glit.util.HashUtils;
@@ -887,26 +881,73 @@ public class Repository {
             e.printStackTrace();
         }
 
+        Path branchPath = REPOSITORY_PATH.resolve(".glit/refs/heads").resolve(branchName);
+
         // restore file structure from branch's last commit
-//        if(!creatingNewBranch && restoreFileStructureFromBranchLastCommit(branchName)){
-//            System.out.println("Fatal: couldn't restore file structure.");
-//            return;
-//        }
-        Path branchPath = Path.of(REPOSITORY_PATH.resolve(".glit/refs/heads").resolve(branchName.substring(0,2)).resolve(branchName.substring(2)).toUri());
+        if(!creatingNewBranch && !restoreFileStructureFromBranchLastCommit(branchPath)){
+            System.out.println("Fatal: couldn't restore file structure.");
+            return;
+        }
+
         // change head
         setLastCommitHash(branchPath, getLastCommitHash(branchPath));
 
+        System.out.println("Switched to a "+ (creatingNewBranch ? "new " : "") +"branch '"+branchName+"'");
 
+    }
+
+    private static boolean restoreFileStructureFromBranchLastCommit(Path branchPath){
+        try {
+            ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+            String commitHash = getLastCommitHash(branchPath);
+            Commit commit = (Commit) reader.readObject(commitHash);
+            String treeHash = commit.getTreeHash();
+            try {
+                buildDirFromTreeHash(REPOSITORY_PATH, treeHash);
+            }catch (IOException e){
+                System.err.println("Fatal: couldn't restore file structure from branch.");
+                e.printStackTrace();
+                return false;
+            }
+
+        } catch (IndexOutOfBoundsException | MissingRepositoryException e) {
+            e.printStackTrace();
+        }
+        return true;
+    }
+
+    private static void buildDirFromTreeHash(Path dirPath, String treeHash) throws IOException{
+        Tree tree = new Tree(Files.readAllBytes(getObjectPathFromHash(treeHash)));
+        List<TreeEntry> entries = tree.getEntries();
+        for(TreeEntry entry : entries){
+            switch (entry.mode()){
+                case "100644" -> createFileFromBlobHash(dirPath.resolve(entry.fileName()), entry.hash());
+                case "040000" -> {
+                    Path newDirPath = dirPath.resolve(entry.fileName());
+                    // check if a new directory must be created
+                    if(!Files.isDirectory(newDirPath)){
+                        Files.createDirectory(newDirPath);
+                    }
+                    buildDirFromTreeHash(newDirPath, entry.hash());
+                }
+                default -> throw new IOException("Object mode not known: " + entry.mode());
+            }
+        }
+    }
+
+    private static void createFileFromBlobHash(Path fileName, String treeHash){
+//        unpack Blob content
     }
 
     /**
-     * Zwraca ścieżkę do repozytorium.
-     *
-     * @return ścieżka do repozytorium
+     * Path of an object getter
+     * @param hash - hash in String of a GlitObject
+     * @return Path to GlitObject file (.glit/objects/??/****)
      */
-    public Path getRepositoryPath() {
-        // REPOSITORY_PATH = whereIsRepo();
-        return REPOSITORY_PATH;
+    public static Path getObjectPathFromHash(String hash){
+        return REPOSITORY_PATH.resolve(".glit").resolve("objects").resolve(hash.substring(0,2)).resolve(hash.substring(2));
     }
+
+
 
 }
