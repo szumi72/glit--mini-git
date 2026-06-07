@@ -23,6 +23,10 @@ public class Call {
         return arguments;
     }
 
+    public List<String> getFlags() {
+        return flags;
+    }
+
     @Override
     public String toString() {
         String temp = function + "; flags{ ";

@@ -1,6 +1,7 @@
 package glit.service;
 
 import java.io.BufferedWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -8,11 +9,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -20,17 +17,13 @@ import glit.cli.Call;
 import glit.cli.GlitController;
 import glit.exceptions.GlitException;
 import glit.exceptions.MissingRepositoryException;
-import glit.model.Blob;
-import glit.model.Commit;
-import glit.model.GlitIndex;
-import glit.model.GlitObject;
-import glit.model.IndexEntry;
-import glit.model.Tree;
-import glit.model.TreeEntry;
+import glit.model.*;
 import glit.storage.ObjectReader;
 import glit.storage.ObjectWriter;
 import glit.util.HashUtils;
 import glit.util.IndexUtils;
+
+import static java.nio.file.Files.list;
 
 /**
  * Klasa odpowiedzialna za zarządzanie repozytorium Glit. Zawiera metody do
@@ -82,13 +75,13 @@ public class Repository {
         REPOSITORY_PATH = Path.of(System.getProperty("user.dir"));
 
         // create dirs
-        Path dirArray[] = {REPOSITORY_PATH.resolve(".glit/objects"), REPOSITORY_PATH.resolve(".glit/refs")};
+        Path dirArray[] = {REPOSITORY_PATH.resolve(".glit/objects"), REPOSITORY_PATH.resolve(".glit/refs/heads")};
         for (Path d : dirArray) {
             try {
                 Files.createDirectories(d);
-                System.out.println("Created directory ./.glit/" + d.getFileName());
+                System.out.println("Created directory " + d);
             } catch (IOException e) {
-                System.out.println("Directory ./.glit/" + d.getFileName() + " cannot be created");
+                System.out.println("Directory " + d + " cannot be created");
                 throw e;
             }
         }
@@ -253,6 +246,17 @@ public class Repository {
 
     }
 
+    /**
+     * Method that adds files to index.
+     * If file is not staged yet, it will be added,
+     * if it is staged but changed since last staging, it will be updated,
+     * otherwise it will be left unchanged.
+     * If file is ignored, it will be skipped.
+     * If no files are added, method will return with info.
+     *
+     * @param cliCall - the object containing parsed command-line arguments
+     * @throws IOException
+     */
     public static void add(Call cliCall) throws IOException {
         REPOSITORY_PATH = whereIsRepo();
 
@@ -340,9 +344,87 @@ public class Repository {
             if (obj != null) {
                 obj.printContent();
             }
-        }catch (IndexOutOfBoundsException | MissingRepositoryException e) {
+        } catch (IndexOutOfBoundsException | MissingRepositoryException e) {
             System.err.println("cat-file err " + e);
         }
+    }
+
+    /**
+     * Method that creates new commit with files staged in index.
+     * If there is no commit in head, all staged files will be commited as new files,
+     * otherwise they will be compared to files in head and marked as modified, new or deleted.
+     * After commit, index should be cleared.
+     *
+     * @param cliCall -  the object containing parsed command-line arguments
+     */
+    public static void commit(Call cliCall) throws IOException {
+        REPOSITORY_PATH=whereIsRepo();
+        INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
+        if(Files.size(INDEX_PATH)==0){
+            System.out.println("Nothing to commit. Add something first (glit add <file1> [file2]...)");
+            return;
+        }
+        List<Path> stagedFiles = IndexUtils.parse(INDEX_PATH).getEntries().stream()
+                .map(e -> Path.of(e.getPath()))
+                .toList();
+        if (stagedFiles.isEmpty()) {
+            System.out.println("Index is empty - nothing to commit. Add your changes first (glit add <file1> [file2] ...)");
+            return;
+        }
+
+        String message = cliCall.getArguments().get(0).toString();
+
+//        parent identifying
+        Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
+        Path branchRef = getPathFromHead(headPath);
+        // when there's no branch or working detached
+        boolean isInObjects = branchRef==null ? false : branchRef.getParent().getParent().equals(REPOSITORY_PATH.resolve(".glit").resolve("objects"));
+        String idParent = branchRef==null ? "" : isInObjects ? REPOSITORY_PATH.resolve(".glit").resolve("objects").relativize(branchRef).toString().replace("/","") : getLastCommitHash(branchRef);
+//        creating tree
+        Tree commitTree = Tree.createAndWriteTree(mapIndexFiles(INDEX_PATH));
+
+        Commit commit = new Commit(message, commitTree.getHash(), idParent);
+        ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
+        writer.saveObject(commit);
+
+
+        if(branchRef==null || isInObjects){
+            try(BufferedWriter w = Files.newBufferedWriter(headPath, StandardOpenOption.TRUNCATE_EXISTING)){
+                w.write(commit.getHash());
+                w.newLine();
+            }catch(Exception e){e.printStackTrace();}
+        }else{
+            // when working on branch
+            setLastCommitHash(branchRef, commit.getHash());
+        }
+
+        String branchName=getCurrentBranchName();
+        System.out.println("On branch " + branchName);
+        System.out.println(" [" + branchName + " " + commit.getHash().substring(0,7) + "] " + message);
+
+//        index cleaning
+        try(BufferedWriter w = Files.newBufferedWriter(INDEX_PATH , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){e.printStackTrace();}
+
+    }
+
+    /**
+     * @return name of the branch currently in use
+     */
+    public static String getCurrentBranchName(){
+        REPOSITORY_PATH = whereIsRepo();
+        if(REPOSITORY_PATH == null)
+            return null;
+        Path headPath = REPOSITORY_PATH.resolve(".glit").resolve("HEAD");
+        String branchName="";
+        try {
+            String headContent = Files.readString(headPath).trim();
+            branchName = headContent.startsWith("ref: refs/heads/") ? headContent.replace("ref: refs/heads/", "") : "detached HEAD";
+        } catch (IOException e) {e.printStackTrace();}
+        return branchName;
+    }
+
+    public static String getAnyBranchName(Path branchPath){
+        return branchPath.toString().replaceFirst(".*refs/heads/", "");
     }
 
     /**
@@ -389,13 +471,13 @@ public class Repository {
         System.out.println("Changes to be committed");
 
         if (commitHashHead.isEmpty()) {
-            //jezeli commit jest pusty to wszsytko jest wypisywane jako nowe pliki
+            //jezeli commit jest pusty to wszystko jest wypisywane jako nowe pliki
             for (String path : indexMap.keySet()) {
                 System.out.println("\tnew file:\t" + path);
             }
-        }else{
+        } else {
             Tree headTree = getHEADTree(commitHashHead);
-            Map<String,String> headMap = mapHeadFiles(headTree,"");
+            Map<String, String> headMap = mapHeadFiles(headTree, "");
             String output = produceStatusOutput(indexMap, headMap);
             if (output.isEmpty()) {
                 System.out.println("\tnothing staged for commit");
@@ -405,7 +487,7 @@ public class Repository {
         }   
 
         System.out.println();
-        String untrackedAndUnstaged = produceUntackedFilesOutput(indexMap, wdMap);
+        String untrackedAndUnstaged = produceUntrackedFilesOutput(indexMap, wdMap);
         System.out.print(untrackedAndUnstaged);
     }
 
@@ -447,18 +529,18 @@ public class Repository {
     private static String produceStatusOutput(Map<String, String> indexMap,Map<String, String> headMap){
         StringBuilder output = new StringBuilder();
 
-        for(String path:indexMap.keySet()){
-            if(!headMap.containsKey(path)){
-                    //"\n" działa na linuxach a na windowsach nie koniecznie
+        for (String path : indexMap.keySet()) {
+            if (!headMap.containsKey(path)) {
+                //"\n" działa na linuxach a na windowsach nie koniecznie
                 output.append("\tnew file:\t").append(path).append(System.lineSeparator());
 
-            }else if(!headMap.get(path).equals(indexMap.get(path))){
+            } else if (!headMap.get(path).equals(indexMap.get(path))) {
                 output.append("\tmodified:\t").append(path).append(System.lineSeparator());
             }
-                
+
         }
-        for(String path:headMap.keySet()){
-            if(!indexMap.containsKey(path)){
+        for (String path : headMap.keySet()) {
+            if (!indexMap.containsKey(path)) {
                 output.append("deleted: ").append(path).append(System.lineSeparator());
             }
         }
@@ -474,20 +556,20 @@ public class Repository {
      * @param wdMap    a map of files existing in the working directory [path -> hash]
      * @return a formatted string describing unstaged modifications and untracked files
      */
-    private static String produceUntackedFilesOutput(Map<String, String> indexMap, Map<String, String> wdMap) {
+    private static String produceUntrackedFilesOutput(Map<String, String> indexMap, Map<String, String> wdMap) {
 
         StringBuilder changesNotStaged = new StringBuilder();
         StringBuilder untrackedFiles = new StringBuilder();
-            for(String path:wdMap.keySet()){
-                if(indexMap.containsKey(path) && !indexMap.get(path).equals(wdMap.get(path))){                    
-                    changesNotStaged.append("\t").append(path).append(System.lineSeparator());                   
-                }
+        for (String path : wdMap.keySet()) {
+            if (indexMap.containsKey(path) && !indexMap.get(path).equals(wdMap.get(path))) {
+                changesNotStaged.append("\t").append(path).append(System.lineSeparator());
             }
-            for(String path:wdMap.keySet()){
-                if(!indexMap.containsKey(path)){
-                    untrackedFiles.append("\t").append(path).append(System.lineSeparator());
-                }
+        }
+        for (String path : wdMap.keySet()) {
+            if (!indexMap.containsKey(path)) {
+                untrackedFiles.append("\t").append(path).append(System.lineSeparator());
             }
+        }
         StringBuilder finalOutput = new StringBuilder();
         if (!changesNotStaged.isEmpty()) {
             finalOutput.append("Changes not staged for commit:").append(System.lineSeparator()).append(changesNotStaged).append(System.lineSeparator());
@@ -512,6 +594,17 @@ public class Repository {
         }
     }
 
+    /**
+     * Stores the commit hash inside a specific branch reference file.
+     * @param commitPath - branch reference file
+     * @param commitHash - hash of a new commit
+     */
+    private static void setLastCommitHash(Path commitPath, String commitHash) {
+        try(BufferedWriter w = Files.newBufferedWriter(commitPath, StandardOpenOption.TRUNCATE_EXISTING)){
+            w.write(commitHash);
+        }catch(Exception e){e.printStackTrace();}
+    }
+
 
     /**
      * Parses the HEAD file and resolves the full system path to the current branch file
@@ -520,7 +613,7 @@ public class Repository {
      * @param headPath the path to the .glit/HEAD file
      * @return the path to the active branch reference file, or a path pointing directly to an object hash in detached HEAD mode
      */
-    private static Path getPathFromHead(Path headPath) {
+    public static Path getPathFromHead(Path headPath) {
         if (!Files.exists(headPath)) {
             return null;
         }
@@ -529,17 +622,21 @@ public class Repository {
             String lastCommitPath;
             if (temp.startsWith("ref: ")) {
                 lastCommitPath = temp.split(" ")[1];
-            } else {
-                lastCommitPath = temp;
+                return REPOSITORY_PATH.resolve(".glit").resolve(lastCommitPath);
+            } else if (!temp.isEmpty()) {
+//                was:
+//                lastCommitPath = temp;
+//                because not able to read in detached mode, changed to:
+                return REPOSITORY_PATH.resolve(".glit").resolve("objects").resolve(temp.substring(0,2)).resolve(temp.substring(2));
+            }else{
+                return null;
             }
-            return REPOSITORY_PATH.resolve(".glit").resolve(lastCommitPath);
-             
-        }catch (IOException e){
+
+        } catch (IOException e) {
             System.err.println("Nie udało się odczytać pliku HEAD");
             return null;
         }
     }
-
     /**
      * Retrieves the root Tree object associated with the given head commit hash.
      *
@@ -554,13 +651,13 @@ public class Repository {
             if (commit instanceof Commit commit1) {
                 String treeHash = commit1.getTreeHash();
                 Object tree = reader.readObject(treeHash);
-                return (Tree)tree;
-            }else{
+                return (Tree) tree;
+            } else {
                 System.err.println("HEAD has bad syntax");
                 return null;
             }
 
-        }catch (MissingRepositoryException e){
+        } catch (MissingRepositoryException e) {
             throw e;
         }
     }
@@ -603,7 +700,8 @@ public class Repository {
      * @throws GlitException if an error occurs while reading sub-objects from disk
      */
     private static Map<String, String> mapHeadFiles(Tree headTree, String prefix) {
-        Map<String, String> headMap = new HashMap<>();
+//        changed HashMap to TreeMap to get sorted records
+        Map<String, String> headMap = new TreeMap<>();
         if (headTree == null) {
             return headMap;
         }
@@ -625,8 +723,8 @@ public class Repository {
                     if (object instanceof Tree subTree) {
                         headMap.putAll(mapHeadFiles(subTree, newPath));
                     }
-                    
-                }catch (GlitException e){
+
+                } catch (GlitException e) {
                     throw new GlitException("cannot read object");
                 }
             }
@@ -650,8 +748,8 @@ public class Repository {
         if (REPOSITORY_PATH == null) return;
 
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
-        try{
-            if(!Files.exists(headPath) || Files.readString(headPath).isEmpty() ){
+        try {
+            if (!Files.exists(headPath) || Files.readString(headPath).isEmpty()) {
                 System.out.println("No commits");
                 return;
             }
@@ -659,33 +757,33 @@ public class Repository {
             String contentHead = Files.readString(headPath).trim();
             ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
             Commit commit;
-            if(contentHead.startsWith("ref: ")){
-                String commitPathStr = contentHead.replace("ref: ","").trim();
+            if (contentHead.startsWith("ref: ")) {
+                String commitPathStr = contentHead.replace("ref: ", "").trim();
                 Path commitPath = REPOSITORY_PATH.resolve(".glit").resolve(commitPathStr);
                 commit = (Commit) reader.readObject(Files.readString(commitPath));
-            }else{
+            } else {
                 commit = (Commit) reader.readObject(contentHead);
             }
-            int counter=0;
-            while(commit!=null && counter<10){
+            int counter = 0;
+            while (commit != null && counter < 10) {
                 commit.printContent();
                 String parentHash = commit.getParentHash();
-                if(parentHash==null || parentHash.isEmpty()){
+                if (parentHash == null || parentHash.isEmpty()) {
                     break;
                 }
                 commit = (Commit) reader.readObject(parentHash);
                 counter++;
             }
-        }catch (IOException e){
+        } catch (IOException e) {
             System.out.println("log failed");
             return;
-        }catch (MissingRepositoryException e){
+        } catch (MissingRepositoryException e) {
             System.out.println(e.getMessage());
         }
     }
     //-----glit log//
 
-     //main only for personal tests
+    //main only for personal tests
     public static void main(String[] args) throws Exception {
         System.out.println("Working");
         // init();
@@ -723,20 +821,7 @@ public class Repository {
 
         //wyslietlanie branchy
         if(cliCall.getArguments() == null || cliCall.getArguments().isEmpty()){
-            try (
-                Stream<Path> paths = Files.list(brachesPath);){
-                paths.forEach(path ->{String branchName = path.getFileName().toString();
-                    if(currentBranchPath!= null && Files.exists(currentBranchPath) && branchName.equals( currentBranchPath.getFileName().toString())){
-
-                        System.out.println("*   " + branchName);
-                    }else{
-                        System.out.println("\t" + branchName);
-                    }
-                });
-
-            }catch (IOException e){
-                System.err.println("Error while reading from files");
-            }
+            printAllBranches(brachesPath, currentBranchPath);
         }else if(cliCall.getArguments().size() == 1){
 
             String newBranchName = cliCall.getArguments().get(0).toString();
@@ -764,24 +849,202 @@ public class Repository {
                     return;
                 }
 
+                if(Files.exists(newBranchPath))
+                    Files.createFile(newBranchPath);
                 Files.writeString(newBranchPath, currentCommitHash);
                 System.out.println("Branch '" + newBranchName + "' created at commit " + currentCommitHash.substring(0, 7) + "...");
 
             } catch (IOException e) {
+                e.printStackTrace();
                 System.out.println("fatal: glit branch error while creating file");
             }
 
         }
     }
-    //-----------glit branch------------//
+
     /**
-     * Zwraca ścieżkę do repozytorium.
-     *
-     * @return ścieżka do repozytorium
+     * prints all branches marking the branch in use
+     * @param branchesPath - Path to .glit/refs/heads
+     * @param currentBranchPath - Path to the branch in use
      */
-    public Path getRepositoryPath() {
-        // REPOSITORY_PATH = whereIsRepo();
-        return REPOSITORY_PATH;
+    public static void printAllBranches(Path branchesPath, Path currentBranchPath) {
+        try (
+            Stream<Path> paths = list(branchesPath)){
+            paths.forEach(path ->{String branchName = path.getFileName().toString();
+                if(currentBranchPath != null && Files.exists(currentBranchPath) && branchName.equals( currentBranchPath.getFileName().toString())){
+
+                    System.out.println("*   " + branchName);
+                }else{
+                    System.out.println("\t" + branchName);
+                }
+            });
+
+        }catch (IOException e){
+            e.printStackTrace();
+            System.err.println("Error while reading from files");
+        }
     }
+
+    /**
+     *
+     * @return list of all branches names
+     */
+    public static List<String> getAllBranches(){
+        Path branchesPath = REPOSITORY_PATH.resolve(".glit").resolve("refs").resolve("heads");
+        List<String> branches;
+        try (Stream<Path> s = Files.list(branchesPath)){
+            branches = s.map(Repository::getAnyBranchName).toList();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("Couldn't read branches.");
+            return null;
+        }
+        return branches;
+    }
+
+    /**
+     * checks whether branch of a given name exists (looks in the .glit/refs/heads/ directory)
+     * @param branchName - branch name
+     * @return true if branch named branchName exists
+     */
+    private static boolean branchExists(String branchName){
+        Path branchesPath = REPOSITORY_PATH.resolve(".glit/refs/heads/");
+        return Files.exists(branchesPath.resolve(branchName));
+    }
+
+    /**
+     * with -b parameter creates new branch and checkouts to it
+     * otherwise checkouts to already existing branch and restores file structure
+     * @param cliCall
+     * @throws IOException
+     */
+    public static void checkout(Call cliCall) throws IOException {
+        REPOSITORY_PATH = whereIsRepo();
+        INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
+        boolean creatingNewBranch = cliCall.getFlags().contains("b");
+        if(creatingNewBranch){
+            branch(cliCall);
+        }
+//        System.out.println("DEBUG1");
+        String branchName = (String) cliCall.getArguments().getFirst();
+
+
+        // check if there are staged files
+        try {
+            if(Files.size(INDEX_PATH)!=0){
+                System.out.println("There are staged files. Commit them first, then checkout.");
+                return;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+//        System.out.println("DEBUG2");
+        Path newBranchPath = REPOSITORY_PATH.resolve(".glit/refs/heads").resolve(branchName);
+        Path currBranchPath = getPathFromHead(REPOSITORY_PATH.resolve(".glit").resolve("HEAD"));
+        System.out.println("currBranchPath = "+currBranchPath);
+
+        // restore file structure from branch's last commit
+        if(!creatingNewBranch && !restoreFileStructureFromBranchLastCommit(newBranchPath, currBranchPath)){
+            System.out.println("Fatal: couldn't restore file structure.");
+            return;
+        }
+
+        // change head
+        try {
+            Files.writeString(REPOSITORY_PATH.resolve(".glit").resolve("HEAD"), "ref: " + newBranchPath.toString().replaceFirst(".*\\.glit/", ""));
+        } catch (IOException e) {
+            System.err.println("Fatal: HEAD couldn't be overwritten.");
+            throw e;
+        }
+//        System.out.println("DEBUG3");
+        System.out.println("Switched to a "+ (creatingNewBranch ? "new " : "") +"branch '"+branchName+"'");
+
+    }
+
+    private static boolean restoreFileStructureFromBranchLastCommit(Path newBranchPath, Path currBranchPath){
+        try {
+            ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+            String commitHash = getLastCommitHash(newBranchPath);
+            Commit commit = (Commit) reader.readObject(commitHash);
+            String newTreeHash = commit.getTreeHash();
+
+            String currCommitHash = getLastCommitHash(currBranchPath);
+            Commit currCommit = (Commit) reader.readObject(currCommitHash);
+            String currTreeHash = currCommit.getTreeHash();
+            try {
+                deleteFilesFromTreeHash(REPOSITORY_PATH, currTreeHash);
+                buildDirFromTreeHash(REPOSITORY_PATH, newTreeHash);
+            }catch (IOException e){
+                System.err.println("Fatal: couldn't restore file structure from branch.");
+                e.printStackTrace();
+                return false;
+            }
+
+        } catch (IndexOutOfBoundsException | MissingRepositoryException e) {
+            e.printStackTrace();
+        }
+        return true;
+    }
+
+    private static void buildDirFromTreeHash(Path dirPath, String treeHash) throws IOException{
+        ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+        Tree tree = (Tree) reader.readObject(treeHash);
+        List<TreeEntry> entries = tree.getEntries();
+        for(TreeEntry entry : entries){
+            switch (entry.mode()){
+                case "100644" -> createFileFromBlobHash(dirPath.resolve(entry.fileName()), entry.hash());
+                case "040000" -> {
+                    Path newDirPath = dirPath.resolve(entry.fileName());
+                    // check if a new directory must be created
+                    if(!Files.isDirectory(newDirPath)){
+                        Files.createDirectory(newDirPath);
+                    }
+                    buildDirFromTreeHash(newDirPath, entry.hash());
+                }
+                default -> throw new IOException("Object mode not known: " + entry.mode());
+            }
+        }
+    }
+
+    private static void deleteFilesFromTreeHash(Path dirPath, String treeHash) throws IOException{
+        ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+        Tree tree = (Tree) reader.readObject(treeHash);
+        List<TreeEntry> entries = tree.getEntries();
+        for(TreeEntry entry : entries){
+            switch (entry.mode()){
+                case "100644" -> Files.delete(dirPath.resolve(entry.fileName()));
+                case "040000" -> {
+                    Path newDirPath = dirPath.resolve(entry.fileName());
+                    // check if a new directory must be created
+                    if(Files.isDirectory(newDirPath)){
+                        deleteFilesFromTreeHash(newDirPath, entry.hash());
+                    }
+                }
+                default -> throw new IOException("Object mode not known: " + entry.mode());
+            }
+        }
+    }
+
+    private static void createFileFromBlobHash(Path fileName, String blobHash)throws IOException{
+//        unpack Blob content
+        ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+        Blob blob = (Blob) reader.readObject(blobHash);
+        try {
+            Files.write(fileName, blob.getContent());
+        } catch (IOException e) {
+            throw new IOException("Fatal: couldn't restore file: "+fileName);
+        }
+    }
+
+    /**
+     * Path of an object getter
+     * @param hash - hash in String of a GlitObject
+     * @return Path to GlitObject file (.glit/objects/??/****)
+     */
+    public static Path getObjectPathFromHash(String hash){
+        return REPOSITORY_PATH.resolve(".glit").resolve("objects").resolve(hash.substring(0,2)).resolve(hash.substring(2));
+    }
+
+
 
 }
