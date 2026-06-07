@@ -907,6 +907,12 @@ public class Repository {
         return Files.exists(branchesPath.resolve(branchName));
     }
 
+    /**
+     * with -b parameter creates new branch and checkouts to it
+     * otherwise checkouts to already existing branch and restores file structure
+     * @param cliCall
+     * @throws IOException
+     */
     public static void checkout(Call cliCall) throws IOException {
         REPOSITORY_PATH = whereIsRepo();
         INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
@@ -914,7 +920,7 @@ public class Repository {
         if(creatingNewBranch){
             branch(cliCall);
         }
-        System.out.println("DEBUG1");
+//        System.out.println("DEBUG1");
         String branchName = (String) cliCall.getArguments().getFirst();
 
 
@@ -927,35 +933,42 @@ public class Repository {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println("DEBUG2");
-        Path branchPath = REPOSITORY_PATH.resolve(".glit/refs/heads").resolve(branchName);
+//        System.out.println("DEBUG2");
+        Path newBranchPath = REPOSITORY_PATH.resolve(".glit/refs/heads").resolve(branchName);
+        Path currBranchPath = getPathFromHead(REPOSITORY_PATH.resolve(".glit").resolve("HEAD"));
+        System.out.println("currBranchPath = "+currBranchPath);
 
         // restore file structure from branch's last commit
-        if(!creatingNewBranch && !restoreFileStructureFromBranchLastCommit(branchPath)){
+        if(!creatingNewBranch && !restoreFileStructureFromBranchLastCommit(newBranchPath, currBranchPath)){
             System.out.println("Fatal: couldn't restore file structure.");
             return;
         }
 
         // change head
         try {
-            Files.writeString(REPOSITORY_PATH.resolve(".glit").resolve("HEAD"), "ref: " + branchPath.toString().replaceFirst(".*\\.glit/", ""));
+            Files.writeString(REPOSITORY_PATH.resolve(".glit").resolve("HEAD"), "ref: " + newBranchPath.toString().replaceFirst(".*\\.glit/", ""));
         } catch (IOException e) {
-            System.err.println("Fatal: HEAD couldn't be overwrite.");
+            System.err.println("Fatal: HEAD couldn't be overwritten.");
             throw e;
         }
-        System.out.println("DEBUG3");
+//        System.out.println("DEBUG3");
         System.out.println("Switched to a "+ (creatingNewBranch ? "new " : "") +"branch '"+branchName+"'");
 
     }
 
-    private static boolean restoreFileStructureFromBranchLastCommit(Path branchPath){
+    private static boolean restoreFileStructureFromBranchLastCommit(Path newBranchPath, Path currBranchPath){
         try {
             ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
-            String commitHash = getLastCommitHash(branchPath);
+            String commitHash = getLastCommitHash(newBranchPath);
             Commit commit = (Commit) reader.readObject(commitHash);
-            String treeHash = commit.getTreeHash();
+            String newTreeHash = commit.getTreeHash();
+
+            String currCommitHash = getLastCommitHash(currBranchPath);
+            Commit currCommit = (Commit) reader.readObject(currCommitHash);
+            String currTreeHash = currCommit.getTreeHash();
             try {
-                buildDirFromTreeHash(REPOSITORY_PATH, treeHash);
+                deleteFilesFromTreeHash(REPOSITORY_PATH, currTreeHash);
+                buildDirFromTreeHash(REPOSITORY_PATH, newTreeHash);
             }catch (IOException e){
                 System.err.println("Fatal: couldn't restore file structure from branch.");
                 e.printStackTrace();
@@ -982,6 +995,25 @@ public class Repository {
                         Files.createDirectory(newDirPath);
                     }
                     buildDirFromTreeHash(newDirPath, entry.hash());
+                }
+                default -> throw new IOException("Object mode not known: " + entry.mode());
+            }
+        }
+    }
+
+    private static void deleteFilesFromTreeHash(Path dirPath, String treeHash) throws IOException{
+        ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+        Tree tree = (Tree) reader.readObject(treeHash);
+        List<TreeEntry> entries = tree.getEntries();
+        for(TreeEntry entry : entries){
+            switch (entry.mode()){
+                case "100644" -> Files.delete(dirPath.resolve(entry.fileName()));
+                case "040000" -> {
+                    Path newDirPath = dirPath.resolve(entry.fileName());
+                    // check if a new directory must be created
+                    if(Files.isDirectory(newDirPath)){
+                        deleteFilesFromTreeHash(newDirPath, entry.hash());
+                    }
                 }
                 default -> throw new IOException("Object mode not known: " + entry.mode());
             }
