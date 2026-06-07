@@ -3,9 +3,6 @@ package glit.service;
 import java.io.BufferedWriter;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,7 +36,7 @@ public class Repository {
      * Ścieżka do katalogu głównego repozytorium.
      */
     public static Path REPOSITORY_PATH;
-    private static Path INDEX_PATH;
+    public static Path INDEX_PATH;
 
     /**
      * Znajduje ścieżkę do najbliższego repozytorium Glit, przeszukując w górę
@@ -333,7 +330,9 @@ public class Repository {
      * @param cliCall the object containing parsed command-line arguments
      */
     public static void catFile(Call cliCall) {
-        REPOSITORY_PATH = whereIsRepo();
+        if (REPOSITORY_PATH == null) {
+            REPOSITORY_PATH = whereIsRepo();
+        }
         if (cliCall.getArguments().size() != 1) {
             System.err.println("Error: cat-file require one argument.");
             return;
@@ -443,7 +442,9 @@ public class Repository {
      public static void status() {
 
         //przypisanie sciezki do repo
-        REPOSITORY_PATH = whereIsRepo();
+        if (REPOSITORY_PATH == null) {
+            REPOSITORY_PATH = whereIsRepo();
+        }
         if (REPOSITORY_PATH == null || !Files.exists(REPOSITORY_PATH.resolve(".glit"))) return;
 
         INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
@@ -741,7 +742,9 @@ public class Repository {
      * Prints the content metadata of up to 10 recent commits by following parent hashes.
      */
     public static void log(){
-        REPOSITORY_PATH = whereIsRepo();
+        if(REPOSITORY_PATH == null){
+            REPOSITORY_PATH = whereIsRepo();
+        }
         if (REPOSITORY_PATH == null) return;
 
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
@@ -808,7 +811,9 @@ public class Repository {
      */
     public static void branch(Call cliCall){
 
-        REPOSITORY_PATH = whereIsRepo();
+        if (REPOSITORY_PATH == null) {
+            REPOSITORY_PATH = whereIsRepo();
+        }
         if (REPOSITORY_PATH == null) return;
         Path brachesPath = REPOSITORY_PATH.resolve(".glit/refs/heads/");
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
