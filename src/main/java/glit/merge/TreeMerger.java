@@ -76,19 +76,21 @@ public class TreeMerger{
                 case TAKE_OURS -> { if (fromOurs != null) newTreeEntries.add(fromOurs); }
                 case TAKE_THEIRS -> { if (fromTheirs != null) newTreeEntries.add(fromTheirs); }
                 case CONFLICT -> {
-                    boolean hasTree = isTree(fromOurs) || isTree(fromTheirs) || isTree(fromBase);
-                    boolean hasBlob = isBlob(fromOurs) || isBlob(fromTheirs) || isBlob(fromBase);
-                    if (hasTree && hasBlob) {
-                        System.out.println("Structural MergeConflict (Miks pliku i katalogu): " + name);
-                        throw new MergeConflictException();
-                    } else if (!hasBlob) {
+                    boolean isBaseTree = isTree(fromBase);
+                    boolean isOursTree = isTree(fromOurs);
+                    boolean isTheirsTree = isTree(fromTheirs);
+                    
+                    if (isBaseTree && isOursTree && isTheirsTree) {
                         String mergedTreeHash = mergeTree(hashBase, hashOurs, hashTheirs); 
                         TreeEntry mergedEntry = new TreeEntry("040000", mergedTreeHash, name);
                         newTreeEntries.add(mergedEntry);   
-                    } else if(!hasTree){
-                        System.out.println("MergeConflict w pliku: " + name);
+                    }else if ((isOursTree && !isTheirsTree)||(!isOursTree && isTheirsTree)){
+                        System.out.println("Structural MergeConflict: " + name);
                         throw new MergeConflictException();
-                    }
+                    } else if(!isBaseTree && !isOursTree && !isTheirsTree){
+                        System.out.println("MergeConflict in file: " + name);
+                        throw new MergeConflictException();
+                    }                    
                    
                 }
             }
@@ -125,14 +127,16 @@ public class TreeMerger{
         boolean isTheirChanged = !Objects.equals(hashBase, hashTheirs);
         boolean sameOursTheirs = Objects.equals(hashOurs, hashTheirs);
 
+        boolean baseExists = fromBase != null;
+        boolean oursExists = fromOurs != null;
+        boolean theirsExists = fromTheirs != null;
+
         if(!isOurChanged && !isTheirChanged){
             return MergeAction.TAKE_BASE;
         }else if(isOurChanged && !isTheirChanged){
             return MergeAction.TAKE_OURS;
         }else if(!isOurChanged && isTheirChanged){
             return MergeAction.TAKE_THEIRS;
-        }else if(Objects.equals(hashOurs, hashTheirs)){
-            return MergeAction.TAKE_OURS;
         }else if(sameOursTheirs){
             return MergeAction.TAKE_OURS;
         }
