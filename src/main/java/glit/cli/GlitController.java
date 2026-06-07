@@ -68,6 +68,8 @@ public class GlitController {
             return null;
         }
 
+
+
         String functionName = args[INDEX_OF_FUNCTION];
         List<String> flags = new ArrayList<>();
         List<Object> arguments = new ArrayList<>();
@@ -147,6 +149,10 @@ public class GlitController {
                 return new Call(functionName, flags, arguments);
             }
             case "checkout" -> {
+                String currBranchName = Repository.getCurrentBranchName();
+                List<String> allBranches = Repository.getAllBranches();
+                Path branchesPath = repositoryPath.resolve(Path.of(".glit/refs/heads"));
+                Path currBranchPath = repositoryPath.resolve(Path.of(".glit/refs/heads")).resolve(currBranchName);
                 String usageMessage = """
                     Usage: glit checkout <branch_name>
                     For creating new branch use: glit checkout -b <new_branch_name>""";
@@ -164,27 +170,20 @@ public class GlitController {
 
                 // currently used branch
                 String branchName = creatingNewBranch ? args[INDEX_OF_FUNCTION + 2] : args[INDEX_OF_FUNCTION + 1];
-                // if (branchName.equals(RefManager.getCurrentBranch()())) {
-                if (branchName.equals("main")) {
+                if (branchName.equals(currBranchName)) {
+    //                if (branchName.equals("main")) {
                     System.out.println("Branch " + branchName + " is currently being used");
                     return null;
                 }
                 // name in system
-                // List<String> branchList = RefManager.getBranches();
-                List<String> branchList = List.of("feature", "feature/init", "feature/parse", "main");
-                if (!creatingNewBranch && !branchList.contains(branchName)) {
-                    System.out.println("Branch \"" + branchName + "\" not found. Available branches:");
-                    for (String el : branchList) {
-                        System.out.print(el + "  ");
-                    }
-                    System.out.println();
+                if (!creatingNewBranch && !allBranches.contains(branchName)) {
+                    System.out.println("Branch \"" + branchName + "\" not found. Available branches:"+allBranches);
+                    System.out.println("--");
+                    Repository.printAllBranches(branchesPath, currBranchPath);
                     return null;
-                } else if (creatingNewBranch && branchList.contains(branchName)) {
+                } else if (creatingNewBranch && allBranches.contains(branchName)) {
                     System.out.println("Cannot use name \"" + branchName + "\" - it has been used. Used names: ");
-                    for (String el : branchList) {
-                        System.out.print(el + "  ");
-                    }
-                    System.out.println();
+                    Repository.printAllBranches(branchesPath, currBranchPath);
                     return null;
                 }
                 if (creatingNewBranch) {
@@ -201,6 +200,10 @@ public class GlitController {
                 return new Call(functionName, flags, arguments);
             }
             case "merge" -> {
+                String currBranchName = Repository.getCurrentBranchName();
+                List<String> allBranches = Repository.getAllBranches();
+                Path branchesPath = repositoryPath.resolve(Path.of(".glit/refs/heads"));
+                Path currBranchPath = repositoryPath.resolve(Path.of(".glit/refs/heads")).resolve(currBranchName);
                 // number of arguments
                 if (args.length != INDEX_OF_FUNCTION + 2) {
                     System.out.println("Wrong arguments. \nUsage: glit merge <branch_to_be_merged_with_your_current>");
@@ -208,20 +211,15 @@ public class GlitController {
                 }
                 // branch currently in use
                 String branchName = args[INDEX_OF_FUNCTION + 1];
-                // if (branchName.equals(RefManager.getCurrentBranch()())) {
-                if (branchName.equals("main")) {
+                 if (branchName.equals(currBranchName)) {
+//                if (branchName.equals("main")) {
                     System.out.println("Cannot merge from branch " + branchName + " - it is currently in use.");
                     return null;
                 }
                 // name in system
-                // List<String> branchList = RefManager.getBranches();
-                List<String> branchList = List.of("feature", "feature/init", "feature/parse", "main");
-                if (!branchList.contains(branchName)) {
+                if (!allBranches.contains(branchName)) {
                     System.out.println("Branch \"" + branchName + "\" not found. Available branches:");
-                    for (String el : branchList) {
-                        System.out.print(el + "  ");
-                    }
-                    System.out.println();
+                    Repository.printAllBranches(branchesPath, currBranchPath);
                     return null;
                 }
                 arguments.add(branchName);
@@ -259,50 +257,51 @@ public class GlitController {
     }
 
     public static void main(String[] args) throws Exception {
-                Call cliCall = validateAndParseCommandLineArgs(args);
+        Call cliCall = validateAndParseCommandLineArgs(args);
         if (cliCall == null) {
             return;
         }
 
         System.out.println(cliCall);
         // call proper method
+        try{
         switch (cliCall.getFunction()) {
             case "init" -> {
                 System.out.println("executing init... \n");
                 Repository.init();
             }
-            case "add" ->{
+            case "add" -> {
                 System.out.println("executing add... \n");
                 Repository.add(cliCall);
             }
-            case "commit" ->{
+            case "commit" -> {
                 System.out.println("executing commit... \n");
                 Repository.commit(cliCall);
             }
-            case "checkout" ->{
+            case "checkout" -> {
                 System.out.println("checkout executed");
+                Repository.checkout(cliCall);
             }
-            case "merge" ->
-                System.out.println("merge executed");
-            case "cat-file" ->{
+            case "merge" -> System.out.println("merge executed");
+            case "cat-file" -> {
                 System.out.println("cat-file executed");
                 Repository.catFile(cliCall);
             }
-            case "status" ->{
+            case "status" -> {
                 System.out.println("status executed");
                 Repository.status();
             }
-            case "log" ->{
+            case "log" -> {
                 System.out.println("log executed");
                 Repository.log();
             }
-            case "branch" ->{
+            case "branch" -> {
                 System.out.println("branch executed");
                 Repository.branch(cliCall);
             }
-
+        }}catch(Exception e){e.printStackTrace();throw e;}
             
-        }
+
     }
 }
 

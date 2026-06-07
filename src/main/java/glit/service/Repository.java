@@ -1,7 +1,11 @@
 package glit.service;
 
 import java.io.BufferedWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,6 +25,8 @@ import glit.storage.ObjectReader;
 import glit.storage.ObjectWriter;
 import glit.util.HashUtils;
 import glit.util.IndexUtils;
+
+import static java.nio.file.Files.list;
 
 /**
  * Klasa odpowiedzialna za zarządzanie repozytorium Glit. Zawiera metody do
@@ -72,13 +78,13 @@ public class Repository {
         REPOSITORY_PATH = Path.of(System.getProperty("user.dir"));
 
         // create dirs
-        Path dirArray[] = {REPOSITORY_PATH.resolve(".glit/objects"), REPOSITORY_PATH.resolve(".glit/refs")};
+        Path dirArray[] = {REPOSITORY_PATH.resolve(".glit/objects"), REPOSITORY_PATH.resolve(".glit/refs/heads")};
         for (Path d : dirArray) {
             try {
                 Files.createDirectories(d);
-                System.out.println("Created directory ./.glit/" + d.getFileName());
+                System.out.println("Created directory " + d);
             } catch (IOException e) {
-                System.out.println("Directory ./.glit/" + d.getFileName() + " cannot be created");
+                System.out.println("Directory " + d + " cannot be created");
                 throw e;
             }
         }
@@ -393,18 +399,33 @@ public class Repository {
             setLastCommitHash(branchRef, commit.getHash());
         }
 
-        String branchName="";
-        try {
-            String headContent = Files.readString(headPath).trim();
-            branchName = headContent.startsWith("ref: refs/heads/") ? headContent.replace("ref: refs/heads/", "") : "detached HEAD";
-            System.out.println("On branch " + branchName);
-        } catch (IOException e) {e.printStackTrace();}
-
+        String branchName=getCurrentBranchName();
+        System.out.println("On branch " + branchName);
         System.out.println(" [" + branchName + " " + commit.getHash().substring(0,7) + "] " + message);
 
 //        index cleaning
         try(BufferedWriter w = Files.newBufferedWriter(INDEX_PATH , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){e.printStackTrace();}
 
+    }
+
+    /**
+     * @return name of the branch currently in use
+     */
+    public static String getCurrentBranchName(){
+        REPOSITORY_PATH = whereIsRepo();
+        if(REPOSITORY_PATH == null)
+            return null;
+        Path headPath = REPOSITORY_PATH.resolve(".glit").resolve("HEAD");
+        String branchName="";
+        try {
+            String headContent = Files.readString(headPath).trim();
+            branchName = headContent.startsWith("ref: refs/heads/") ? headContent.replace("ref: refs/heads/", "") : "detached HEAD";
+        } catch (IOException e) {e.printStackTrace();}
+        return branchName;
+    }
+
+    public static String getAnyBranchName(Path branchPath){
+        return branchPath.toString().replaceFirst(".*refs/heads/", "");
     }
 
     /**
@@ -591,7 +612,7 @@ public class Repository {
      * @param headPath the path to the .glit/HEAD file
      * @return the path to the active branch reference file, or a path pointing directly to an object hash in detached HEAD mode
      */
-    private static Path getPathFromHead(Path headPath) {
+    public static Path getPathFromHead(Path headPath) {
         if (!Files.exists(headPath)) {
             return null;
         }
@@ -795,20 +816,7 @@ public class Repository {
 
         //wyslietlanie branchy
         if(cliCall.getArguments() == null || cliCall.getArguments().isEmpty()){
-            try (
-                Stream<Path> paths = Files.list(brachesPath);){
-                paths.forEach(path ->{String branchName = path.getFileName().toString();
-                    if(currentBranchPath!= null && Files.exists(currentBranchPath) && branchName.equals( currentBranchPath.getFileName().toString())){
-
-                        System.out.println("*   " + branchName);
-                    }else{
-                        System.out.println("\t" + branchName);
-                    }
-                });
-
-            }catch (IOException e){
-                System.err.println("Error while reading from files");
-            }
+            printAllBranches(brachesPath, currentBranchPath);
         }else if(cliCall.getArguments().size() == 1){
 
             String newBranchName = cliCall.getArguments().get(0).toString();
@@ -836,16 +844,58 @@ public class Repository {
                     return;
                 }
 
+                if(Files.exists(newBranchPath))
+                    Files.createFile(newBranchPath);
                 Files.writeString(newBranchPath, currentCommitHash);
                 System.out.println("Branch '" + newBranchName + "' created at commit " + currentCommitHash.substring(0, 7) + "...");
 
             } catch (IOException e) {
+                e.printStackTrace();
                 System.out.println("fatal: glit branch error while creating file");
             }
 
         }
     }
-    //-----------glit branch------------//
+
+    /**
+     * prints all branches marking the branch in use
+     * @param branchesPath - Path to .glit/refs/heads
+     * @param currentBranchPath - Path to the branch in use
+     */
+    public static void printAllBranches(Path branchesPath, Path currentBranchPath) {
+        try (
+            Stream<Path> paths = list(branchesPath)){
+            paths.forEach(path ->{String branchName = path.getFileName().toString();
+                if(currentBranchPath != null && Files.exists(currentBranchPath) && branchName.equals( currentBranchPath.getFileName().toString())){
+
+                    System.out.println("*   " + branchName);
+                }else{
+                    System.out.println("\t" + branchName);
+                }
+            });
+
+        }catch (IOException e){
+            e.printStackTrace();
+            System.err.println("Error while reading from files");
+        }
+    }
+
+    /**
+     *
+     * @return list of all branches names
+     */
+    public static List<String> getAllBranches(){
+        Path branchesPath = REPOSITORY_PATH.resolve(".glit").resolve("refs").resolve("heads");
+        List<String> branches;
+        try (Stream<Path> s = Files.list(branchesPath)){
+            branches = s.map(Repository::getAnyBranchName).toList();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("Couldn't read branches.");
+            return null;
+        }
+        return branches;
+    }
 
     /**
      * checks whether branch of a given name exists (looks in the .glit/refs/heads/ directory)
@@ -857,19 +907,16 @@ public class Repository {
         return Files.exists(branchesPath.resolve(branchName));
     }
 
-    public static void checkout(Call cliCall){
+    public static void checkout(Call cliCall) throws IOException {
         REPOSITORY_PATH = whereIsRepo();
         INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
         boolean creatingNewBranch = cliCall.getFlags().contains("b");
         if(creatingNewBranch){
             branch(cliCall);
         }
-        // check if branch name exists
+        System.out.println("DEBUG1");
         String branchName = (String) cliCall.getArguments().getFirst();
-        if (!branchExists(branchName)){
-            System.out.println("Couldn't switch to branch '" + branchName + "'.");
-            return;
-        }
+
 
         // check if there are staged files
         try {
@@ -880,7 +927,7 @@ public class Repository {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
+        System.out.println("DEBUG2");
         Path branchPath = REPOSITORY_PATH.resolve(".glit/refs/heads").resolve(branchName);
 
         // restore file structure from branch's last commit
@@ -890,8 +937,13 @@ public class Repository {
         }
 
         // change head
-        setLastCommitHash(branchPath, getLastCommitHash(branchPath));
-
+        try {
+            Files.writeString(REPOSITORY_PATH.resolve(".glit").resolve("HEAD"), "ref: " + branchPath.toString().replaceFirst(".*\\.glit/", ""));
+        } catch (IOException e) {
+            System.err.println("Fatal: HEAD couldn't be overwrite.");
+            throw e;
+        }
+        System.out.println("DEBUG3");
         System.out.println("Switched to a "+ (creatingNewBranch ? "new " : "") +"branch '"+branchName+"'");
 
     }
@@ -917,7 +969,8 @@ public class Repository {
     }
 
     private static void buildDirFromTreeHash(Path dirPath, String treeHash) throws IOException{
-        Tree tree = new Tree(Files.readAllBytes(getObjectPathFromHash(treeHash)));
+        ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+        Tree tree = (Tree) reader.readObject(treeHash);
         List<TreeEntry> entries = tree.getEntries();
         for(TreeEntry entry : entries){
             switch (entry.mode()){
@@ -935,8 +988,15 @@ public class Repository {
         }
     }
 
-    private static void createFileFromBlobHash(Path fileName, String treeHash){
+    private static void createFileFromBlobHash(Path fileName, String blobHash)throws IOException{
 //        unpack Blob content
+        ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+        Blob blob = (Blob) reader.readObject(blobHash);
+        try {
+            Files.write(fileName, blob.getContent());
+        } catch (IOException e) {
+            throw new IOException("Fatal: couldn't restore file: "+fileName);
+        }
     }
 
     /**
