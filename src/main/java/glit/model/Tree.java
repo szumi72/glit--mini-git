@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import glit.util.HashUtils;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * Represents ObjectReader.java Tree object in the Glit repository.
@@ -52,9 +53,15 @@ public class Tree extends GlitObject {
         updateHash();
     }
 
-    private ArrayList<TreeEntry> entries;
+    public Tree(List<TreeEntry> entries){
+        mode = "040000";
+        this.entries = entries;
+        updateHash();
+    }
 
-    public ArrayList<TreeEntry> getEntries(){return entries;}
+    private List<TreeEntry> entries;
+
+    public List<TreeEntry> getEntries(){return entries;}
     //dodawanie elementow do drzewa
 
     /**
