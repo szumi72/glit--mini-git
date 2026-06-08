@@ -53,15 +53,15 @@ public class Tree extends GlitObject {
         updateHash();
     }
 
-    public Tree(List<TreeEntry> entries){
+    public Tree(ArrayList<TreeEntry> entries){
         mode = "040000";
         this.entries = entries;
         updateHash();
     }
 
-    private List<TreeEntry> entries;
+    private ArrayList<TreeEntry> entries;
 
-    public List<TreeEntry> getEntries(){return entries;}
+    public ArrayList<TreeEntry> getEntries(){return entries;}
     //dodawanie elementow do drzewa
 
     /**

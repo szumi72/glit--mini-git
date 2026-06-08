@@ -5,7 +5,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -34,6 +33,14 @@ public class TreeMerger{
         this.writer = new ObjectWriter(repositoryPath);
     }
 
+    public ObjectReader getReader(){
+        return reader;
+    }
+
+    public ObjectWriter getWriter(){
+        return writer;
+    }
+
     public String mergeTree(String baseTreeHash,String oursTreeHash,String theirsTreeHash){
 
         MergeAction rootAction = determineAction(baseTreeHash, oursTreeHash, theirsTreeHash);
@@ -56,7 +63,7 @@ public class TreeMerger{
         allEntriesNames.addAll(fromOursMap.keySet());
         allEntriesNames.addAll(fromTheirsMap.keySet());
 
-        List<TreeEntry> newTreeEntries = new ArrayList<>();
+        ArrayList<TreeEntry> newTreeEntries = new ArrayList<>();
 
         for (String name : allEntriesNames) {
             TreeEntry fromBase = fromBaseMap.get(name);
@@ -87,7 +94,8 @@ public class TreeMerger{
                     }else if ((isOursTree && !isTheirsTree)||(!isOursTree && isTheirsTree)){
                         System.out.println("Structural MergeConflict: " + name);
                         throw new MergeConflictException();
-                    } else if(!isBaseTree && !isOursTree && !isTheirsTree){
+                    } else if(!isBaseTree && !isOursTree && !isTheirsTree && (oursTreeHash!=null && theirsTreeHash!=null)){
+                        //konflikt blobów trzeba dopisać BlobMerger
                         System.out.println("MergeConflict in file: " + name);
                         throw new MergeConflictException();
                     }                    
@@ -127,9 +135,6 @@ public class TreeMerger{
         boolean isTheirChanged = !Objects.equals(hashBase, hashTheirs);
         boolean sameOursTheirs = Objects.equals(hashOurs, hashTheirs);
 
-        boolean baseExists = fromBase != null;
-        boolean oursExists = fromOurs != null;
-        boolean theirsExists = fromTheirs != null;
 
         if(!isOurChanged && !isTheirChanged){
             return MergeAction.TAKE_BASE;
