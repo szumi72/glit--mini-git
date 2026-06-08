@@ -29,6 +29,7 @@ public class IndexUtils {
 
         // --- ENTRIES ---
         for (IndexEntry e : entries) {
+            System.out.println("DEBUG - zapisuje entry: "+e.getPath());
             e.write(buffer);
         }
 
