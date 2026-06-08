@@ -2,13 +2,12 @@ package glit.model;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.*;
-
-import glit.service.Repository;
-import glit.storage.ObjectWriter;
-import glit.util.HashUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.*;
+import glit.util.HashUtils;
+import glit.service.Repository;
+import glit.storage.ObjectWriter;
 
 /**
  * Represents ObjectReader.java Tree object in the Glit repository.
