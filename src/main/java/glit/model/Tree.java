@@ -2,10 +2,12 @@ package glit.model;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import glit.util.HashUtils;
+
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.*;
+import glit.util.HashUtils;
+import glit.service.Repository;
+import glit.storage.ObjectWriter;
 
 /**
  * Represents ObjectReader.java Tree object in the Glit repository.
@@ -18,6 +20,12 @@ public class Tree extends GlitObject {
     public Tree(){
         mode = "040000";
         entries = new ArrayList<TreeEntry>();
+        updateHash();
+    }
+
+    public Tree(List<TreeEntry> entries){
+        mode = "040000";
+        this.entries = new ArrayList<>(entries);
         updateHash();
     }
 
@@ -53,10 +61,79 @@ public class Tree extends GlitObject {
         updateHash();
     }
 
-    public Tree(ArrayList<TreeEntry> entries){
-        mode = "040000";
-        this.entries = entries;
-        updateHash();
+    private static class TreeNode {
+        String name;
+        boolean directory;
+        Map<String, TreeNode> children; // tylko dla katalogów
+        String hash; // opcjonalnie: jak w Git
+
+        TreeNode(String name, boolean directory) {
+            this.name = name;
+            this.directory = directory;
+            this.children = directory ? new TreeMap<>() : null;
+        }
+    }
+
+    private static void addPath(TreeNode root, String path) {
+        String[] parts = path.split("/");
+
+        TreeNode current = root;
+
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i];
+            boolean isDir = (i < parts.length - 1);
+
+            current.children.putIfAbsent(part, new TreeNode(part, isDir));
+            current = current.children.get(part);
+        }
+    }
+
+    private static TreeNode buildTreeNodeMap(Map<String, String> indexMap){
+        TreeNode root = new TreeNode("", true);
+
+        for (String p : indexMap.keySet()) {
+            addPath(root, p);
+        }
+        return root;
+    }
+
+    private static Tree buildTree(TreeNode node, Map<String, String> indexMap, String currentPath) {
+        List<TreeEntry> entries = new ArrayList<>();
+
+        for (TreeNode child : node.children.values()) {
+            String childPath = currentPath.isEmpty()
+                    ? child.name
+                    : currentPath + "/" + child.name;
+
+            if (child.directory) {
+                // Rekurencyjnie budujemy pod-tree
+                Tree subTree = buildTree(child, indexMap, childPath);
+
+                // Hash katalogu to hash jego Tree
+                subTree.updateHash();
+                String treeHash = subTree.getHash();
+
+                entries.add(new TreeEntry("040000", treeHash, child.name));
+            } else {
+                // Plik — hash z indexMap
+                String blobHash = indexMap.get(childPath);
+
+                entries.add(new TreeEntry("100644", blobHash, child.name));
+            }
+        }
+
+        Tree t = new Tree(entries);
+        ObjectWriter writer = new ObjectWriter(Repository.REPOSITORY_PATH);
+        writer.saveObject(t);
+        return t;
+    }
+
+    /**
+     * creates and writes Tree from directory structure
+     * @param indexMap - map [full_path -> hash]
+     */
+    public static Tree createAndWriteTree(Map<String,String> indexMap){
+        return buildTree(buildTreeNodeMap(indexMap), indexMap, "");
     }
 
     private ArrayList<TreeEntry> entries;
