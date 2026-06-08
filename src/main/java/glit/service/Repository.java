@@ -17,11 +17,14 @@ import glit.cli.Call;
 import glit.cli.GlitController;
 import glit.exceptions.GlitException;
 import glit.exceptions.MissingRepositoryException;
+import glit.merge.TreeMerger;
 import glit.model.*;
 import glit.storage.ObjectReader;
 import glit.storage.ObjectWriter;
 import glit.util.HashUtils;
 import glit.util.IndexUtils;
+
+import javax.print.attribute.standard.NumberOfInterveningJobs;
 
 import static java.nio.file.Files.list;
 
@@ -915,6 +918,7 @@ public class Repository {
     /**
      * with -b parameter creates new branch and checkouts to it
      * otherwise checkouts to already existing branch and restores file structure
+     * !!! avoid names with slash (for now)
      * @param cliCall
      * @throws IOException
      */
@@ -1043,6 +1047,90 @@ public class Repository {
      */
     public static Path getObjectPathFromHash(String hash){
         return REPOSITORY_PATH.resolve(".glit").resolve("objects").resolve(hash.substring(0,2)).resolve(hash.substring(2));
+    }
+
+    /**
+     * similar to git merge - merges branch given as an argument to the branch currently in use
+     * @param cliCall - CLI args
+     * @throws GlitException when can't get current branch name
+     */
+    public static void merge(Call cliCall) throws GlitException, IOException {
+        REPOSITORY_PATH=whereIsRepo();
+        if(REPOSITORY_PATH==null) {
+            System.out.println("No glit repository found");
+            return;
+        }
+        Path headsPath = REPOSITORY_PATH.resolve(".glit").resolve("refs").resolve("heads");
+        String ourBranchName = getCurrentBranchName();
+        if(ourBranchName==null){
+            throw new GlitException("Couldn't get current branch name - checkout to some first.");
+        }
+        String ourCommitHash = getLastCommitHash(headsPath.resolve(ourBranchName));
+        String theirBranchName = (String) cliCall.getArguments().get(0);
+        String theirCommitHash = getLastCommitHash(headsPath.resolve(theirBranchName));
+
+        ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+        Commit temp = (Commit) reader.readObject(ourCommitHash);
+        String ourTreeHash = temp.getTreeHash();
+//        System.out.println("DEBUG - merge. Our commit:");
+//        temp.printContent();
+        temp = (Commit) reader.readObject(theirCommitHash);
+        String theirTreeHash = temp.getTreeHash();
+//        System.out.println("DEBUG - merge. Their commit:");
+//        temp.printContent();
+
+        String baseTreeHash;
+        try {
+            baseTreeHash = getBaseTreeHash(ourCommitHash, theirCommitHash);
+        }catch (GlitException e){
+            System.err.println("getBaseTreeHash failed");
+            throw e;
+        }
+
+        TreeMerger merger = new TreeMerger(REPOSITORY_PATH);
+        String mergedTreeHash = merger.mergeTree(baseTreeHash, ourTreeHash, theirTreeHash);
+        buildDirFromTreeHash(REPOSITORY_PATH,mergedTreeHash);
+        Commit mergedCommit = new Commit("Merge from "+theirBranchName, mergedTreeHash, ourCommitHash);
+        ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
+        writer.saveObject(mergedCommit);
+        setLastCommitHash(headsPath.resolve(ourBranchName), mergedCommit.getHash());
+        System.out.println("Merged succesfully");
+    }
+
+    private static String getBaseTreeHash(String ourCommitHash, String theirCommitHash) throws GlitException{
+        List<String> ourList = new ArrayList<>(List.of(ourCommitHash));
+        List<String> theirList = new ArrayList<>(List.of(ourCommitHash));
+        String our = ourCommitHash;
+        String their = theirCommitHash;
+        ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
+        String base="";
+        while(!our.isEmpty() && !their.isEmpty()){
+            Commit ourCommit = (Commit) reader.readObject(our);
+            our = ourCommit.getParentHash();
+            ourList.add(our);
+            if(theirList.contains(our)){
+                base = our;
+                break;
+            }
+
+            Commit theirCommit = (Commit) reader.readObject(their);
+            their = theirCommit.getParentHash();
+            theirList.add(their);
+            if(ourList.contains(their)){
+                base = their;
+                break;
+            }
+        }
+//        System.out.println("DEBUG - getBaseTreeHash. Base hash: "+base);
+        if(base.isEmpty()){
+            throw new GlitException("Base is empty.");
+        }
+        Commit baseCommit = (Commit) reader.readObject(base);
+//        System.out.println("Znaleziony baseCommit:");
+//        baseCommit.printContent();
+        return baseCommit.getTreeHash();
+
+
     }
 
 
