@@ -25,6 +25,12 @@ public class FileMerger {
     }
 
     public String mergeFiles(String baseHash, String oursHash, String theirsHash) {
+        // Wszystkie trzy identyczne
+        if (baseHash != null && baseHash.equals(oursHash) && baseHash.equals(theirsHash)) {
+            return baseHash;
+        }
+
+        // Brak wspólnej bazy (dodawanie pliku)
         if (baseHash == null) {
             if (oursHash != null && theirsHash != null && !oursHash.equals(theirsHash)) {
                 List<String> oursLines = readLinesFromBlob(oursHash);
@@ -38,6 +44,30 @@ public class FileMerger {
             return null;
         }
 
+        // Obie strony zmieniły plik w ten sam sposób
+        if (oursHash != null && theirsHash != null && oursHash.equals(theirsHash)) {
+            return oursHash;
+        }
+
+        // Tylko my zmieniliśmy (theirs bez zmian)
+        if (theirsHash != null && theirsHash.equals(baseHash) && oursHash != null && !oursHash.equals(baseHash)) {
+            return oursHash;
+        }
+
+        // Tylko oni zmienili (ours bez zmian)
+        if (oursHash != null && oursHash.equals(baseHash) && theirsHash != null && !theirsHash.equals(baseHash)) {
+            return theirsHash;
+        }
+
+        // Usunięcie vs modyfikacja – wybieramy istniejącą wersję
+        if (oursHash == null && theirsHash != null && !theirsHash.equals(baseHash)) {
+            return theirsHash;
+        }
+        if (oursHash != null && theirsHash == null && !oursHash.equals(baseHash)) {
+            return oursHash;
+        }
+
+        // Wczytanie treści plików
         List<String> base   = readLinesFromBlob(baseHash);
         List<String> ours   = readLinesFromBlob(oursHash);
         List<String> theirs = readLinesFromBlob(theirsHash);
@@ -83,7 +113,7 @@ public class FileMerger {
                 continue;
             }
 
-            // 5. Brak bazy (base się skończył), a obie strony mają nowe linie – dodajemy obie
+            // 5. Brak bazy (base się skończył) – obie strony dodały linie
             if (bLine == null && oLine != null && tLine != null) {
                 merged.add(oLine);
                 merged.add(tLine);
@@ -91,7 +121,7 @@ public class FileMerger {
                 continue;
             }
 
-            // 6. Fallback – inne rozbieżności
+            // 6. Fallback – zmiany rozjechały się (np. usunięcie vs modyfikacja)
             if (oLine != null || tLine != null) {
                 if (oLine != null && tLine != null && !oLine.equals(tLine)) {
                     throw new MergeConflictException("Conflict: divergent changes");
