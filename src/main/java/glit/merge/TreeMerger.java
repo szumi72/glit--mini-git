@@ -99,7 +99,7 @@ public class TreeMerger {
         if (rootAction == MergeAction.TAKE_BASE) return baseTreeHash;
         if (rootAction == MergeAction.TAKE_OURS) return oursTreeHash;
         if (rootAction == MergeAction.TAKE_THEIRS) return theirsTreeHash;
-
+//        System.out.println("DEBUG-mergeTree");
         Tree baseTree = (baseTreeHash != null) ? (Tree) reader.readObject(baseTreeHash) : new Tree();
         Tree ourTree = (oursTreeHash != null) ? (Tree) reader.readObject(oursTreeHash) : new Tree();
         Tree theirTree = (theirsTreeHash != null) ? (Tree) reader.readObject(theirsTreeHash) : new Tree();

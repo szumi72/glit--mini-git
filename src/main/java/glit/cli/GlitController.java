@@ -282,7 +282,10 @@ public class GlitController {
                 System.out.println("checkout executed");
                 Repository.checkout(cliCall);
             }
-            case "merge" -> System.out.println("merge executed");
+            case "merge" -> {
+                System.out.println("merge executed");
+                Repository.merge(cliCall);
+            }
             case "cat-file" -> {
                 System.out.println("cat-file executed");
                 Repository.catFile(cliCall);
