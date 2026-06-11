@@ -7,6 +7,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -129,23 +130,18 @@ public class GlitController {
                 } else {
                     flags.add("m");
                 }
-                // unnecessary arguments
+                // longer name
+                String message = args[INDEX_OF_FUNCTION + 2];
                 if (args.length > INDEX_OF_FUNCTION + 3) {
-                    System.out.println("Unnecessary arguments. \n" + usageMessage);
-                    return null;
+                    message += " " + String.join(" ", Arrays.copyOfRange(args, INDEX_OF_FUNCTION + 3, args.length));
                 }
                 // weird flag
                 if (args[INDEX_OF_FUNCTION + 2].startsWith("-")) {
                     System.out.println("glit commit doesn't have flag " + args[INDEX_OF_FUNCTION + 2] + "\n" + usageMessage);
                     return null;
                 }
-                // 
-                String commitName = args[INDEX_OF_FUNCTION + 2];
-                args[INDEX_OF_FUNCTION + 2] = commitName.replaceAll("\\s+", "_");
-                if (!commitName.equals(args[INDEX_OF_FUNCTION + 2])) {
-                    System.out.println("Commit name changed to: " + args[INDEX_OF_FUNCTION + 2]);
-                }
-                arguments.add(args[INDEX_OF_FUNCTION + 2]);
+                arguments.add(message);
+
                 return new Call(functionName, flags, arguments);
             }
             case "checkout" -> {
