@@ -930,7 +930,7 @@ public class Repository {
             branch(cliCall);
         }
 //        System.out.println("DEBUG1");
-        String branchName = (String) cliCall.getArguments().getFirst();
+        String branchName = (String) cliCall.getArguments().get(0);
 
 
         // check if there are staged files
