@@ -1,4 +1,5 @@
 package glit.storage;
+
 import glit.exceptions.MissingRepositoryException;
 import glit.service.Repository;
 import org.junit.jupiter.api.Test;
@@ -11,7 +12,6 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 
 /**
  * Tests for the ObjectWriter class to ensure proper Git-like object storage.
@@ -27,7 +27,6 @@ public class ObjectWriterTest {
                 .resolve(hash.substring(2));
     }
 
-
     /**
      * Verifies that all types of GlitObjects (Blob, Tree, Commit) are correctly compressed and saved.
      */
@@ -41,12 +40,13 @@ public class ObjectWriterTest {
             Repository.init();
             Repository repo = new Repository();
             ObjectWriter writer = new ObjectWriter(tempDir);
+
+            // POPRAWKA: Dodano czwarty parametr "Test Author" do konstruktora Commit
             List<GlitObject> objects = List.of(
                     new Blob("test content".getBytes()),
                     new Tree(),
-                    new Commit("message", new Blob("test".getBytes()).getHash(), "")
+                    new Commit("message", new Blob("test".getBytes()).getHash(), "", "Test Author")
             );
-
 
             //When
             for (GlitObject obj : objects) {
@@ -55,7 +55,6 @@ public class ObjectWriterTest {
                 //Then
                 assertTrue(Files.exists(path), "Obiekt typu " + obj.getClass().getSimpleName() + " nie został zapisany!");
             }
-
 
         } finally {
             System.setProperty("user.dir", originalDir);
@@ -79,7 +78,6 @@ public class ObjectWriterTest {
             Blob b = new Blob("test".getBytes());
             Path expectedFile = getObjectPath(tempDir,b.getHash());
 
-
             writer.saveObject(b);
             long firstWriteTime = Files.getLastModifiedTime(expectedFile).toMillis();
 
@@ -102,7 +100,6 @@ public class ObjectWriterTest {
      */
     @Test
     public void testSaveWithoutRepository() {
-
         assertThrows(MissingRepositoryException.class, () -> {
             ObjectWriter writer = new ObjectWriter(null);
         }, "Should throw MissingRepository when repository path is missing");
