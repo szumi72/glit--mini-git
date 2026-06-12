@@ -27,6 +27,7 @@ import glit.util.IndexUtils;
 import javax.print.attribute.standard.NumberOfInterveningJobs;
 
 import static java.nio.file.Files.list;
+import static java.nio.file.Files.readString;
 
 /**
  * Klasa odpowiedzialna za zarządzanie repozytorium Glit. Zawiera metody do
@@ -377,6 +378,8 @@ public class Repository {
 
         String message = cliCall.getArguments().get(0).toString();
 
+        String author = readCommitAuthor();
+
 //        parent identifying
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
         Path branchRef = getPathFromHead(headPath);
@@ -386,7 +389,7 @@ public class Repository {
 //        creating tree
         Tree commitTree = Tree.createAndWriteTree(mapIndexFiles(INDEX_PATH));
 
-        Commit commit = new Commit(message, commitTree.getHash(), idParent);
+        Commit commit = new Commit(message, commitTree.getHash(), idParent,author);
         ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
         writer.saveObject(commit);
 
@@ -408,6 +411,23 @@ public class Repository {
 //        index cleaning
         try(BufferedWriter w = Files.newBufferedWriter(INDEX_PATH , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){e.printStackTrace();}
 
+    }
+
+    private static String readCommitAuthor() throws GlitException{
+        REPOSITORY_PATH=whereIsRepo();
+        if(REPOSITORY_PATH==null) {
+            throw new MissingRepositoryException();
+        }
+        Path configPath = REPOSITORY_PATH.resolve(".glit").resolve("config");
+        if(!Files.exists(configPath)){
+            return "None";
+        }
+        try{
+            return readString(configPath).trim();
+        }
+        catch (IOException e){
+            throw new GlitException("cannot read from config");
+        }
     }
 
     /**
@@ -1022,6 +1042,7 @@ public class Repository {
                     // check if a new directory must be created
                     if(Files.isDirectory(newDirPath)){
                         deleteFilesFromTreeHash(newDirPath, entry.hash());
+                        Files.deleteIfExists(newDirPath);
                     }
                 }
                 default -> throw new IOException("Object mode not known: " + entry.mode());
@@ -1086,11 +1107,11 @@ public class Repository {
             System.err.println("getBaseTreeHash failed");
             throw e;
         }
-
+        String author = readCommitAuthor();
         TreeMerger merger = new TreeMerger(REPOSITORY_PATH);
         String mergedTreeHash = merger.mergeTree(baseTreeHash, ourTreeHash, theirTreeHash);
         buildDirFromTreeHash(REPOSITORY_PATH,mergedTreeHash);
-        Commit mergedCommit = new Commit("Merge from "+theirBranchName, mergedTreeHash, ourCommitHash);
+        Commit mergedCommit = new Commit("Merge from "+theirBranchName, mergedTreeHash, ourCommitHash,author);
         ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
         writer.saveObject(mergedCommit);
         setLastCommitHash(headsPath.resolve(ourBranchName), mergedCommit.getHash());
@@ -1099,7 +1120,7 @@ public class Repository {
 
     private static String getBaseTreeHash(String ourCommitHash, String theirCommitHash) throws GlitException{
         List<String> ourList = new ArrayList<>(List.of(ourCommitHash));
-        List<String> theirList = new ArrayList<>(List.of(ourCommitHash));
+        List<String> theirList = new ArrayList<>(List.of(theirCommitHash));
         String our = ourCommitHash;
         String their = theirCommitHash;
         ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
@@ -1132,6 +1153,8 @@ public class Repository {
 
 
     }
+
+
 
 
 

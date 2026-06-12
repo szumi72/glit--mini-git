@@ -25,6 +25,17 @@ public class Commit extends GlitObject{
         setHash();
     }
 
+    public Commit(String message,String objectHash,String parentHash,String author){
+        this.author = author;
+        this.parentHash = parentHash;
+        this.treeHash = objectHash;
+        this.message = message;
+        ZonedDateTime now = ZonedDateTime.now();
+        timestamp = now.toEpochSecond();
+        timezone = now.format(DateTimeFormatter.ofPattern("xx"));
+        setHash();
+    }
+
     public Commit(byte [] content){
         String fullContent = new String(content,StandardCharsets.UTF_8);
 
@@ -61,8 +72,7 @@ public class Commit extends GlitObject{
         setHash();
     }
 
-    //TODO
-    //to trzeba bedzie ustawic zeby sie gdzies zapisywało i czytało z jakieg pliku
+
     private String author = "The_best_programmist_ever";
     final private long timestamp;
     final private String timezone;
