@@ -49,16 +49,12 @@ public class Repository {
      * @return ścieżka do repozytorium lub null, jeśli nie znaleziono
      */
     public static Path whereIsRepo() {
-        try {
-            Path current = Paths.get(".").toRealPath();
-            while (current != null) {
-                if (Files.isDirectory(current.resolve(".glit"))) {
-                    return current;
-                }
-                current = current.getParent();
+        Path current = Path.of(System.getProperty("user.dir"));
+        while (current != null) {
+            if (Files.isDirectory(current.resolve(".glit"))) {
+                return current;
             }
-        } catch (IOException e) {
-            System.out.println(e);
+            current = current.getParent();
         }
         return null;
     }

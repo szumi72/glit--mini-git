@@ -1,4 +1,7 @@
+package glit.service;
+
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -166,6 +169,20 @@ class Repository2Test {
             assertTrue(output.contains("On branch main"), "Should display correct branch name");
             assertTrue(output.contains("Untracked files:"), "Should contain Untracked files section");
             assertTrue(output.contains("new-code.java"), "Should list the untracked file name");
+        }
+    }
+
+    @Test
+    public void testInitThrowsIfAlreadyExists(@TempDir Path tempDir) throws IOException {
+        // Zmień katalog
+        String originalDir = System.getProperty("user.dir");
+        System.setProperty("user.dir", tempDir.toString());
+        try {
+            Repository.init();
+            Repository.init();
+            assertTrue(outContent.toString().contains("Glit repository in ") && outContent.toString().contains(" is already initialized."));
+        } finally {
+            System.setProperty("user.dir", originalDir);
         }
     }
 }

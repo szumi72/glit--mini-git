@@ -52,22 +52,7 @@ public class RepositoryTest {
      * @param tempDir tymczasowy katalog
      * @throws IOException jeśli oczekiwany wyjątek nie zostanie rzucony
      */
-    @Test
-    public void testInitThrowsIfAlreadyExists(@TempDir Path tempDir) throws IOException {
-        // Zmień katalog
-        String originalDir = System.getProperty("user.dir");
-        System.setProperty("user.dir", tempDir.toString());
 
-        try {
-            // Pierwsza inicjalizacja
-            Repository.init();
-
-            // Druga próba powinna rzucić wyjątek (Files.createFile na istniejącym pliku)
-            assertThrows(IOException.class, Repository::init);
-        } finally {
-            System.setProperty("user.dir", originalDir);
-        }
-    }
 
     /**
      * Test sprawdza, czy init() tworzy pliki jako puste.
