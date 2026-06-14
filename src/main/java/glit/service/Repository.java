@@ -383,6 +383,7 @@ public class Repository {
 //        parent identifying
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
         Path branchRef = getPathFromHead(headPath);
+        System.out.println("DEBUG: pathFromHead: "+branchRef);
         // when in detached HEAD check if there is commit hash written in HEAD
         boolean isInObjects=false;
         String idParent;
@@ -392,8 +393,10 @@ public class Repository {
                 isInObjects=true;
             }catch (IOException e){throw new IOException("Couldn't find HEAD file");}
         }else{
-            idParent = REPOSITORY_PATH.resolve(".glit").resolve("objects").relativize(branchRef).toString().replace("/","");
+//            TODO
+//            idParent = get;
         }
+        System.out.println("DEBUG: idParent: "+idParent);
 //          creating tree
         Tree commitTree = Tree.createAndWriteTree(mapIndexFiles(INDEX_PATH));
 
@@ -1138,6 +1141,8 @@ public class Repository {
         ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
         writer.saveObject(mergedCommit);
         setLastCommitHash(headsPath.resolve(ourBranchName), mergedCommit.getHash());
+        //clear index
+        try(BufferedWriter w = Files.newBufferedWriter(INDEX_PATH , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){e.printStackTrace();}
         System.out.println("Merged succesfully");
     }
 
@@ -1148,22 +1153,26 @@ public class Repository {
         String their = theirCommitHash;
         ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
         String base="";
+        int counter=0;
         while(!our.isEmpty() && !their.isEmpty()){
-            Commit ourCommit = (Commit) reader.readObject(our);
-            our = ourCommit.getParentHash();
-            ourList.add(our);
+            counter++;
+            System.out.println(counter + ". our: " + our + " their: " + their);
             if(theirList.contains(our)){
                 base = our;
                 break;
             }
+            Commit ourCommit = (Commit) reader.readObject(our);
+            our = ourCommit.getParentHash();
+            ourList.add(our);
 
-            Commit theirCommit = (Commit) reader.readObject(their);
-            their = theirCommit.getParentHash();
-            theirList.add(their);
             if(ourList.contains(their)){
                 base = their;
                 break;
             }
+            Commit theirCommit = (Commit) reader.readObject(their);
+            their = theirCommit.getParentHash();
+            theirList.add(their);
+
         }
 //        System.out.println("DEBUG - getBaseTreeHash. Base hash: "+base);
         if(base.isEmpty()){
