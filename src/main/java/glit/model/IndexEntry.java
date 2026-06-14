@@ -152,6 +152,10 @@ public class IndexEntry {
 
     public static IndexEntry createFromPath(Path path, Path repositoryPath) throws IOException {
         IndexEntry entry = null;
+        Path normalizedPath = path;
+        if (path.isAbsolute() && path.startsWith(repositoryPath)) {
+            normalizedPath = repositoryPath.relativize(path);
+        }
         try (FileChannel channel = FileChannel.open(repositoryPath.resolve(path), StandardOpenOption.READ)) {
             // System.out.println("DEBUG");
             ByteBuffer buffer = ByteBuffer.allocate((int) channel.size());
@@ -160,12 +164,16 @@ public class IndexEntry {
             GlitObject o = new Blob(buffer.array());
             ObjectWriter writer = new ObjectWriter(repositoryPath);
             String hash = writer.saveObject(o);
-            entry = new IndexEntry(path, repositoryPath, HashUtils.hexStringToByteArray(hash));
-        }catch(IOException e){
+            entry = new IndexEntry(normalizedPath, repositoryPath, HashUtils.hexStringToByteArray(hash));
+        } catch (IOException e) {
             throw e;
             //throw new IOException("Couldn't create Blob from "+path);
-            }
+        }
         return entry;
     }
 
+    @Override
+    public String toString(){
+        return "path: "+path+" siz: "+fileSize;
+    }
 }
