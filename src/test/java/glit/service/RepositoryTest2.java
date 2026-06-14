@@ -172,8 +172,35 @@ class Repository2Test {
         }
     }
 
+    // ==========================================
+    // 4. TESTY DLA GLIT INIT
+    // ==========================================
     @Test
-    public void testInitThrowsIfAlreadyExists(@TempDir Path tempDir) throws IOException {
+    public void testInitCreatesRepository(@TempDir Path tempDir) throws IOException {
+        // Zmień bieżący katalog na tymczasowy (symulacja)
+        String originalDir = System.getProperty("user.dir");
+        System.setProperty("user.dir", tempDir.toString());
+
+        try {
+            // Wywołaj init
+            Repository.init();
+
+            // Sprawdź katalogi
+            assertTrue(Files.exists(tempDir.resolve(".glit/objects")));
+            assertTrue(Files.exists(tempDir.resolve(".glit/refs")));
+
+            // Sprawdź pliki
+            assertTrue(Files.exists(tempDir.resolve(".glit/config")));
+            assertTrue(Files.exists(tempDir.resolve(".glit/HEAD")));
+            assertTrue(Files.exists(tempDir.resolve(".glit/description")));
+        } finally {
+            // Przywróć oryginalny katalog
+            System.setProperty("user.dir", originalDir);
+        }
+    }
+
+    @Test
+    public void testInitSerrIfAlreadyExists(@TempDir Path tempDir) throws IOException {
         // Zmień katalog
         String originalDir = System.getProperty("user.dir");
         System.setProperty("user.dir", tempDir.toString());
@@ -185,4 +212,26 @@ class Repository2Test {
             System.setProperty("user.dir", originalDir);
         }
     }
+
+    @Test
+    public void testInitCreatesEmptyFiles(@TempDir Path tempDir) throws IOException {
+        String originalDir = System.getProperty("user.dir");
+        System.setProperty("user.dir", tempDir.toString());
+
+        try {
+            Repository.init();
+
+            // Sprawdź, czy pliki są puste
+            assertEquals(0, Files.size(tempDir.resolve(".glit/config")));
+            assertEquals(0, Files.size(tempDir.resolve(".glit/HEAD")));
+            assertEquals(0, Files.size(tempDir.resolve(".glit/description")));
+        } finally {
+            System.setProperty("user.dir", originalDir);
+        }
+    }
+
+
+    // ==========================================
+    // 4. TESTY DLA GLIT ADD
+    // ==========================================
 }
