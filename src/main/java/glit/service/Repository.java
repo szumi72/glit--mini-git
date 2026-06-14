@@ -383,10 +383,18 @@ public class Repository {
 //        parent identifying
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
         Path branchRef = getPathFromHead(headPath);
-        // when there's no branch or working detached
-        boolean isInObjects = branchRef==null ? false : branchRef.getParent().getParent().equals(REPOSITORY_PATH.resolve(".glit").resolve("objects"));
-        String idParent = branchRef==null ? "" : isInObjects ? REPOSITORY_PATH.resolve(".glit").resolve("objects").relativize(branchRef).toString().replace("/","") : getLastCommitHash(branchRef);
-//        creating tree
+        // when in detached HEAD check if there is commit hash written in HEAD
+        boolean isInObjects=false;
+        String idParent;
+        if(branchRef==null){
+            try {
+                idParent = Files.readString(headPath);
+                isInObjects=true;
+            }catch (IOException e){throw new IOException("Couldn't find HEAD file");}
+        }else{
+            idParent = REPOSITORY_PATH.resolve(".glit").resolve("objects").relativize(branchRef).toString().replace("/","");
+        }
+//          creating tree
         Tree commitTree = Tree.createAndWriteTree(mapIndexFiles(INDEX_PATH));
 
         Commit commit = new Commit(message, commitTree.getHash(), idParent,author);
@@ -634,7 +642,9 @@ public class Repository {
      * that HEAD points to.
      *
      * @param headPath the path to the .glit/HEAD file
-     * @return the path to the active branch reference file, or a path pointing directly to an object hash in detached HEAD mode
+     * @return the path to the active branch reference file if there is a content:
+     * "ref: refs/heads/"...
+     * null otherwise
      */
     public static Path getPathFromHead(Path headPath) {
         if (!Files.exists(headPath)) {
@@ -646,12 +656,14 @@ public class Repository {
             if (temp.startsWith("ref: ")) {
                 lastCommitPath = temp.split(" ")[1];
                 return REPOSITORY_PATH.resolve(".glit").resolve(lastCommitPath);
-            } else if (!temp.isEmpty()) {
-//                was:
-//                lastCommitPath = temp;
-//                because not able to read in detached mode, changed to:
-                return REPOSITORY_PATH.resolve(".glit").resolve("objects").resolve(temp.substring(0,2)).resolve(temp.substring(2));
-            }else{
+            }
+//            else if (!temp.isEmpty()) {
+////                was:
+////                lastCommitPath = temp;
+////                because not able to read in detached mode, changed to:
+//                return REPOSITORY_PATH.resolve(".glit").resolve("objects").resolve(temp.substring(0,2)).resolve(temp.substring(2));
+//            }
+            else{
                 return null;
             }
 
@@ -832,12 +844,12 @@ public class Repository {
      *
      * @param cliCall the object containing parsed command-line arguments
      */
-    public static void branch(Call cliCall){
+    public static boolean branch(Call cliCall){
 
         if (REPOSITORY_PATH == null) {
             REPOSITORY_PATH = whereIsRepo();
         }
-        if (REPOSITORY_PATH == null) return;
+        if (REPOSITORY_PATH == null) return false;
         Path brachesPath = REPOSITORY_PATH.resolve(".glit/refs/heads/");
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
         Path currentBranchPath = getPathFromHead(headPath);
@@ -851,7 +863,7 @@ public class Repository {
 
             if(Files.exists(brachesPath.resolve(newBranchName))){
                 System.out.println("Branch with this name already exists");
-                return;
+                return false;
             }
             Path newBranchPath = brachesPath.resolve(newBranchName);
             try {
@@ -869,7 +881,7 @@ public class Repository {
 
                 if (currentCommitHash.isEmpty()) {
                     System.out.println("fatal: Cannot create branch because there are no commits yet.");
-                    return;
+                    return false;
                 }
 
                 if(Files.exists(newBranchPath))
@@ -880,9 +892,11 @@ public class Repository {
             } catch (IOException e) {
                 e.printStackTrace();
                 System.out.println("fatal: glit branch error while creating file");
+                return false;
             }
 
         }
+        return true;
     }
 
     /**
@@ -946,10 +960,9 @@ public class Repository {
         REPOSITORY_PATH = whereIsRepo();
         INDEX_PATH = REPOSITORY_PATH.resolve(".glit/index");
         boolean creatingNewBranch = cliCall.getFlags().contains("b");
-        if(creatingNewBranch){
-            branch(cliCall);
+        if(creatingNewBranch && !branch(cliCall)){
+            return;
         }
-//        System.out.println("DEBUG1");
         String branchName = (String) cliCall.getArguments().get(0);
 
 
@@ -962,10 +975,10 @@ public class Repository {
         } catch (IOException e) {
             e.printStackTrace();
         }
-//        System.out.println("DEBUG2");
         Path newBranchPath = REPOSITORY_PATH.resolve(".glit/refs/heads").resolve(branchName);
         Path currBranchPath = getPathFromHead(REPOSITORY_PATH.resolve(".glit").resolve("HEAD"));
-        System.out.println("currBranchPath = "+currBranchPath);
+//        System.out.println("currBranchPath = "+currBranchPath);
+
 
         // restore file structure from branch's last commit
         if(!creatingNewBranch && !restoreFileStructureFromBranchLastCommit(newBranchPath, currBranchPath)){
@@ -992,7 +1005,17 @@ public class Repository {
             Commit commit = (Commit) reader.readObject(commitHash);
             String newTreeHash = commit.getTreeHash();
 
-            String currCommitHash = getLastCommitHash(currBranchPath);
+            String currCommitHash;
+            if(currBranchPath==null) {
+                try {
+                    currCommitHash = Files.readString(REPOSITORY_PATH.resolve(".glit").resolve("HEAD"));
+                }catch (IOException e){
+                    System.err.println("Fatal: couldn't read HEAD file");
+                    return false;
+                }
+            }else{
+                currCommitHash = getLastCommitHash(currBranchPath);
+            }
             Commit currCommit = (Commit) reader.readObject(currCommitHash);
             String currTreeHash = currCommit.getTreeHash();
             try {
