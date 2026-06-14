@@ -393,8 +393,7 @@ public class Repository {
                 isInObjects=true;
             }catch (IOException e){throw new IOException("Couldn't find HEAD file");}
         }else{
-//            TODO
-//            idParent = get;
+            idParent = getLastCommitHash(branchRef);
         }
         System.out.println("DEBUG: idParent: "+idParent);
 //          creating tree
@@ -1142,7 +1141,7 @@ public class Repository {
         writer.saveObject(mergedCommit);
         setLastCommitHash(headsPath.resolve(ourBranchName), mergedCommit.getHash());
         //clear index
-        try(BufferedWriter w = Files.newBufferedWriter(INDEX_PATH , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){e.printStackTrace();}
+        try(BufferedWriter w = Files.newBufferedWriter(REPOSITORY_PATH.resolve(".glit").resolve("index") , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){e.printStackTrace();}
         System.out.println("Merged succesfully");
     }
 
@@ -1154,27 +1153,35 @@ public class Repository {
         ObjectReader reader = new ObjectReader(REPOSITORY_PATH);
         String base="";
         int counter=0;
-        while(!our.isEmpty() && !their.isEmpty()){
+        while(!our.isEmpty() || !their.isEmpty()){
             counter++;
             System.out.println(counter + ". our: " + our + " their: " + their);
+
+            if(!our.isEmpty()){
+                Commit ourCommit = (Commit) reader.readObject(our);
+                our = ourCommit.getParentHash();
+                ourList.add(our);
+            }
+
+//            System.out.println(counter + ". ourlist: " + ourList);
             if(theirList.contains(our)){
                 base = our;
                 break;
             }
-            Commit ourCommit = (Commit) reader.readObject(our);
-            our = ourCommit.getParentHash();
-            ourList.add(our);
 
+            if(!their.isEmpty()) {
+                Commit theirCommit = (Commit) reader.readObject(their);
+                their = theirCommit.getParentHash();
+                theirList.add(their);
+            }
+//            System.out.println(counter + ". theirlist: " + theirList);
             if(ourList.contains(their)){
                 base = their;
                 break;
             }
-            Commit theirCommit = (Commit) reader.readObject(their);
-            their = theirCommit.getParentHash();
-            theirList.add(their);
 
         }
-//        System.out.println("DEBUG - getBaseTreeHash. Base hash: "+base);
+        System.out.println("DEBUG - getBaseTreeHash. Base hash: "+base);
         if(base.isEmpty()){
             throw new GlitException("Base is empty.");
         }
