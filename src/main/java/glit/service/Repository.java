@@ -75,7 +75,7 @@ public class Repository {
         REPOSITORY_PATH = Path.of(System.getProperty("user.dir"));
 
         // create dirs
-        Path dirArray[] = {REPOSITORY_PATH.resolve(".glit/objects"), REPOSITORY_PATH.resolve(".glit/refs/heads/main")};
+        Path dirArray[] = {REPOSITORY_PATH.resolve(".glit/objects"), REPOSITORY_PATH.resolve(".glit/refs/heads")};
         for (Path d : dirArray) {
             try {
                 Files.createDirectories(d);
@@ -87,7 +87,7 @@ public class Repository {
         }
 
         // create files
-        Path fileArray[] = {REPOSITORY_PATH.resolve(".glit/config"), REPOSITORY_PATH.resolve(".glit/HEAD"), REPOSITORY_PATH.resolve(".glit/description")};
+        Path fileArray[] = {REPOSITORY_PATH.resolve(".glit/config"), REPOSITORY_PATH.resolve(".glit/HEAD"), REPOSITORY_PATH.resolve(".glit/description"), REPOSITORY_PATH.resolve(".glit/refs/heads/main")};
         for (Path f : fileArray) {
             try {
                 Files.createFile(f);
