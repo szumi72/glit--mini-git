@@ -1,15 +1,20 @@
 package glit.service;
 
 import java.io.BufferedWriter;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import static java.nio.file.Files.list;
+import static java.nio.file.Files.readString;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -18,16 +23,17 @@ import glit.cli.GlitController;
 import glit.exceptions.GlitException;
 import glit.exceptions.MissingRepositoryException;
 import glit.merge.TreeMerger;
-import glit.model.*;
+import glit.model.Blob;
+import glit.model.Commit;
+import glit.model.GlitIndex;
+import glit.model.GlitObject;
+import glit.model.IndexEntry;
+import glit.model.Tree;
+import glit.model.TreeEntry;
 import glit.storage.ObjectReader;
 import glit.storage.ObjectWriter;
 import glit.util.HashUtils;
 import glit.util.IndexUtils;
-
-import javax.print.attribute.standard.NumberOfInterveningJobs;
-
-import static java.nio.file.Files.list;
-import static java.nio.file.Files.readString;
 
 /**
  * Klasa odpowiedzialna za zarządzanie repozytorium Glit. Zawiera metody do
@@ -905,7 +911,7 @@ public class Repository {
             paths.forEach(path ->{String branchName = path.getFileName().toString();
                 if(currentBranchPath != null && Files.exists(currentBranchPath) && branchName.equals( currentBranchPath.getFileName().toString())){
 
-                    System.out.println("*   " + branchName);
+                    System.out.println("\t*" + branchName);
                 }else{
                     System.out.println("\t" + branchName);
                 }
