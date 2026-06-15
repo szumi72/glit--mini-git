@@ -258,44 +258,44 @@ public class GlitController {
             return;
         }
 
-        System.out.println(cliCall);
+//        System.out.println(cliCall);
         // call proper method
         try{
         switch (cliCall.getFunction()) {
             case "init" -> {
-                System.out.println("executing init... \n");
+//                System.out.println("executing init... \n");
                 Repository.init();
             }
             case "add" -> {
-                System.out.println("executing add... \n");
+//                System.out.println("executing add... \n");
                 Repository.add(cliCall);
             }
             case "commit" -> {
-                System.out.println("executing commit... \n");
+//                System.out.println("executing commit... \n");
                 Repository.commit(cliCall);
             }
             case "checkout" -> {
-                System.out.println("checkout executed");
+//                System.out.println("checkout executed");
                 Repository.checkout(cliCall);
             }
             case "merge" -> {
-                System.out.println("merge executed");
+//                System.out.println("merge executed");
                 Repository.merge(cliCall);
             }
             case "cat-file" -> {
-                System.out.println("cat-file executed");
+//                System.out.println("cat-file executed");
                 Repository.catFile(cliCall);
             }
             case "status" -> {
-                System.out.println("status executed");
+//                System.out.println("status executed");
                 Repository.status();
             }
             case "log" -> {
-                System.out.println("log executed");
+//                System.out.println("log executed");
                 Repository.log();
             }
             case "branch" -> {
-                System.out.println("branch executed");
+//                System.out.println("branch executed");
                 Repository.branch(cliCall);
             }
         }}catch(Exception e){e.printStackTrace();throw e;}

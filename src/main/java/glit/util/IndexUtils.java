@@ -29,7 +29,7 @@ public class IndexUtils {
 
         // --- ENTRIES ---
         for (IndexEntry e : entries) {
-            System.out.println("DEBUG - zapisuje entry: "+e.getPath());
+//            System.out.println("DEBUG - zapisuje entry: "+e.getPath());
             e.write(buffer);
         }
 
@@ -119,11 +119,9 @@ public class IndexUtils {
         int gid = buffer.getInt();
         long fileSize = buffer.getInt() & 0xffffffffL;
 
-        // TODO - check compatibility with HashUtils
         byte[] objectId = new byte[20];
         buffer.get(objectId);
 
-        // int flags = buffer.getShort() & 0xffff;
         // --- PATH ---
         StringBuilder path = new StringBuilder();
         byte b;
