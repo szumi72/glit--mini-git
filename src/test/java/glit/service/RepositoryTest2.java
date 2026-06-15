@@ -464,7 +464,8 @@ class Repository2Test {
             String newHead = Files.readString(tempDir.resolve(".glit/HEAD")).trim();
             assertTrue(newHead.matches("[0-9a-f]{40}"), "HEAD should be updated to the new commit hash in detached mode");
             assertNotEquals("4a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b", newHead);
-            assertTrue(outContent.toString().contains("On branch detached HEAD"));
+            assertTrue(outContent.toString().contains("detached HEAD"));
+//            assertEquals(null,outContent.toString());
         } finally {
             System.setProperty("user.dir", originalDir);
         }

@@ -85,7 +85,7 @@ public class Repository {
         for (Path d : dirArray) {
             try {
                 Files.createDirectories(d);
-                System.out.println("Created directory " + d);
+//                System.out.println("Created directory " + d);
             } catch (IOException e) {
                 System.out.println("Directory " + d + " cannot be created");
                 throw e;
@@ -97,7 +97,7 @@ public class Repository {
         for (Path f : fileArray) {
             try {
                 Files.createFile(f);
-                System.out.println("Created file ./.glit/" + f.getFileName());
+//                System.out.println("Created file ./.glit/" + f.getFileName());
             } catch (IOException e) {
                 System.out.println("Couldn't create " + f);
                 throw e;
@@ -109,7 +109,7 @@ public class Repository {
             INDEX_PATH = REPOSITORY_PATH.resolve(".glit").resolve("index");
             GlitIndex index = new GlitIndex(2);
             IndexUtils.write(index, INDEX_PATH);
-            System.out.println("Created .glit/index with proper header.");
+//            System.out.println("Created .glit/index with proper header.");
 
         } catch (NoSuchAlgorithmException | IOException e) {
             System.err.println("Couldn't create index: " + e.getMessage());
@@ -121,7 +121,7 @@ public class Repository {
             writer.newLine();
             writer.write(".glitignore");
             writer.newLine();
-            System.out.println("Created .glitignore with standard content.");
+//            System.out.println("Created .glitignore with standard content.");
         } catch (IOException e) {
             System.err.println(e);
         }
@@ -198,7 +198,7 @@ public class Repository {
     private static boolean isChanged(GlitIndex index, Path file) throws IOException {
         IndexEntry entry = findInIndex(index, file);
         if (entry == null) {
-            System.out.println("not found in index");
+//            System.out.println("not found in index");
             return true;
         }
         Path attrPath = REPOSITORY_PATH.resolve(file);
@@ -207,48 +207,48 @@ public class Repository {
 
         // OS independent
         if (entry.getCtimeSec() != attrs.creationTime().to(TimeUnit.SECONDS)) {
-            System.out.println("csec");
+//            System.out.println("csec");
             return true;
         }
         if (entry.getCtimeNsec() != ((attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L))) {
-            System.out.println(entry.getCtimeNsec() + "   " + attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L);
-            System.out.println("cnsec");
+//            System.out.println(entry.getCtimeNsec() + "   " + attrs.creationTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L);
+//            System.out.println("cnsec");
             return true;
         }
         if (entry.getMtimeSec() != attrs.lastModifiedTime().to(TimeUnit.SECONDS)) {
-            System.out.println("msec");
+//            System.out.println("msec");
             return true;
         }
         if (entry.getMtimeNsec() != attrs.lastModifiedTime().to(TimeUnit.NANOSECONDS) % 1_000_000_000L) {
-            System.out.println("mnsec");
+//            System.out.println("mnsec");
             return true;
         }
 
         // OS dependent
         if (entry.getDev() != (long) Files.getAttribute(attrPath, "unix:dev")) {
-            System.out.println("dev");
+//            System.out.println("dev");
             return true;
         }
         if (entry.getIno() != (long) Files.getAttribute(attrPath, "unix:ino")) {
-            System.out.println("ino");
+//            System.out.println("ino");
             return true;
         }
         if (entry.getMode() != (int) Files.getAttribute(attrPath, "unix:mode")) {
-            System.out.println("mode");
+//            System.out.println("mode");
             return true;
         }
         if (entry.getUid() != (int) Files.getAttribute(attrPath, "unix:uid")) {
-            System.out.println("uid");
+//            System.out.println("uid");
             return true;
         }
         if (entry.getGid() != (int) Files.getAttribute(attrPath, "unix:gid")) {
-            System.out.println("gid");
+//            System.out.println("gid");
             return true;
         }
 
         // OS independent
         if (entry.getFileSize() != attrs.size()) {
-            System.out.println("size");
+//            System.out.println("size");
             return true;
         }
 
@@ -294,7 +294,7 @@ public class Repository {
                 }
                 // System.out.println(el);
                 if (isChanged(currIndex, arg)) {
-                    System.out.println(arg + " is changed");
+//                    System.out.println(arg + " is changed");
                     entries.removeIf(e -> e.getPath().equals(arg.toString()));
                     newIndex.add(IndexEntry.createFromPath(arg, REPOSITORY_PATH));
                     isAnyChanged = true;
@@ -302,7 +302,7 @@ public class Repository {
                 }
             }
             if (!isAnyChanged) {
-                System.out.println("Nothing was added - all files has been already staged.");
+                System.out.println("Nothing was added - all files have been already staged.");
                 return;
             } else {
                 newIndex.addAll(entries);
@@ -387,7 +387,7 @@ public class Repository {
 //        parent identifying
         Path headPath = REPOSITORY_PATH.resolve(".glit/HEAD");
         Path branchRef = getPathFromHead(headPath);
-        System.out.println("DEBUG: pathFromHead: "+branchRef);
+//        System.out.println("DEBUG: pathFromHead: "+branchRef);
         // when in detached HEAD check if there is commit hash written in HEAD
         boolean isInObjects=false;
         String idParent;
@@ -399,7 +399,7 @@ public class Repository {
         }else{
             idParent = getLastCommitHash(branchRef);
         }
-        System.out.println("DEBUG: idParent: "+idParent);
+//        System.out.println("DEBUG: idParent: "+idParent);
 //          creating tree
         Tree commitTree = Tree.createAndWriteTree(mapIndexFiles(INDEX_PATH));
 
@@ -419,7 +419,7 @@ public class Repository {
         }
 
         String branchName=getCurrentBranchName();
-        System.out.println("On branch " + branchName);
+//        System.out.println("On branch " + branchName);
         System.out.println(" [" + branchName + " " + commit.getHash().substring(0,7) + "] " + message);
 
 //        index cleaning
@@ -1159,7 +1159,7 @@ public class Repository {
         int counter=0;
         while(!our.isEmpty() || !their.isEmpty()){
             counter++;
-            System.out.println(counter + ". our: " + our + " their: " + their);
+//            System.out.println(counter + ". our: " + our + " their: " + their);
 
             if(!our.isEmpty()){
                 Commit ourCommit = (Commit) reader.readObject(our);
@@ -1185,7 +1185,7 @@ public class Repository {
             }
 
         }
-        System.out.println("DEBUG - getBaseTreeHash. Base hash: "+base);
+//        System.out.println("DEBUG - getBaseTreeHash. Base hash: "+base);
         if(base.isEmpty()){
             throw new GlitException("Base is empty.");
         }
