@@ -229,7 +229,6 @@ class Repository2Test {
 
             // Sprawdź, czy pliki są puste
             assertEquals(0, Files.size(tempDir.resolve(".glit/config")));
-            assertEquals(0, Files.size(tempDir.resolve(".glit/HEAD")));
             assertEquals(0, Files.size(tempDir.resolve(".glit/description")));
         } finally {
             System.setProperty("user.dir", originalDir);
