@@ -131,7 +131,11 @@ Provides low-level object persistence, compression, and retrieval.
 
 Helper classes for hashing and index manipulation.
 
----
+#### merge
+
+Implements merge algorithms for files and directory trees.
+
+#### model
 
 ## Example Workflow
 
