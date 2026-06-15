@@ -24,11 +24,11 @@ The primary goal of Glit is educational: to demonstrate how version control syst
 
 ## System Requirements
 
-| Component        | Version                  |
-| ---------------- | ------------------------ |
-| Operating System | Linux (Bash environment) |
-| Java             | JDK 17+                  |
-| Build Tool       | Apache Maven 3.6+        |
+| Component                    | Version                  |
+|------------------------------| ------------------------ |
+| Operating System             | Linux (Bash environment) |
+| Java                         | JDK 17+                  |
+| Build Tool (for dev-version) | Apache Maven 3.6+        |
 
 ---
 
@@ -36,7 +36,20 @@ The primary goal of Glit is educational: to demonstrate how version control syst
 
 Glit provides an automated installation script that builds the project and configures a global `glit` command.
 
-### Automatic Installation
+### Use-only Installation
+
+1. Download user_package.tar.gz from install_package directory.
+2. Extract files and run script
+
+```bash
+tar xzf user_package.tar.gz
+chmod +x glit/glit-setup.sh && ./glit/glit-setup.sh
+```
+
+3. Your Glit is ready to use.
+
+
+### Dev Installation
 
 1. Clone or download the repository.
 2. Navigate to the project root directory.
@@ -47,21 +60,7 @@ chmod +x glit-setup.sh
 ./glit-setup.sh
 ```
 
-4. Restart your terminal or reload your shell configuration:
-
-```bash
-source ~/.bashrc
-```
-
-5. Your Glit installation is ready to use.
-
-### Manual Build
-
-```bash
-mvn clean install
-```
-
-The generated JAR file will be available in the `target/` directory.
+4. Your Glit is ready to use. (The generated JAR file will be available in the `target/` directory.)
 
 ---
 
@@ -132,7 +131,11 @@ Provides low-level object persistence, compression, and retrieval.
 
 Helper classes for hashing and index manipulation.
 
----
+#### merge
+
+Implements merge algorithms for files and directory trees.
+
+#### model
 
 ## Example Workflow
 
@@ -197,6 +200,12 @@ Display the contents of a stored object:
 
 ```bash
 glit cat-file <object-hash>
+```
+
+(dev-only) Rebuild project after changes:
+
+```bash
+glit rebuild
 ```
 
 ---

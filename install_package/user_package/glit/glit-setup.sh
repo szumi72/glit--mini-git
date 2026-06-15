@@ -10,19 +10,19 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # add glit to profile's aliases
 if ! grep -q "alias glit" ~/.bashrc; then
-    echo "alias glit='$SCRIPT_DIR/glit.sh'" >> ~/.bashrc
+    echo "alias glit='$SCRIPT_DIR/target/glit.sh'" >> ~/.bashrc
     change_flag=1
 fi
 # add GLIT_PATH to profile's variables
 if ! grep -q "GLIT_PATH" ~/.profile; then
-    
-    echo "GLIT_PATH='$SCRIPT_DIR'" >> ~/.profile
+    echo "GLIT_PATH='$SCRIPT_DIR/target'" >> ~/.profile
     change_flag=1
 fi
-export GLIT_PATH=$SCRIPT_DIR
+export GLIT_PATH=$SCRIPT_DIR/target
 # check if you have .jar file ready
-if [ ! -f "$GLIT_PATH/target/glit-mini-git-1.0-SNAPSHOT.jar" ]; then
-    mvn -f $GLIT_PATH/pom.xml package
+if [ ! -f "$GLIT_PATH/glit-mini-git-1.0-SNAPSHOT.jar" ]; then
+    echo "Fatal: cannot find .jar file."
+    exit 404
 fi
 # check if glit.sh is readable
 if [ ! -r $GLIT_PATH/glit.sh ]; then

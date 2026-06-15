@@ -93,7 +93,7 @@ public class Repository {
         }
 
         // create files
-        Path fileArray[] = {REPOSITORY_PATH.resolve(".glit/config"), REPOSITORY_PATH.resolve(".glit/HEAD"), REPOSITORY_PATH.resolve(".glit/description")};
+        Path fileArray[] = {REPOSITORY_PATH.resolve(".glit/config"), REPOSITORY_PATH.resolve(".glit/HEAD"), REPOSITORY_PATH.resolve(".glit/description"), REPOSITORY_PATH.resolve(".glit/refs/heads/main")};
         for (Path f : fileArray) {
             try {
                 Files.createFile(f);
@@ -124,6 +124,11 @@ public class Repository {
             System.out.println("Created .glitignore with standard content.");
         } catch (IOException e) {
             System.err.println(e);
+        }
+        try{
+            Files.writeString(REPOSITORY_PATH.resolve(".glit/HEAD"), "ref: refs/heads/main");
+        } catch (IOException e) {
+            System.err.println("Couldn't write to HEAD");
         }
     }
 
