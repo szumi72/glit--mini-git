@@ -157,7 +157,7 @@ glit add Main.java
 glit commit -m "Initial commit"
 
 # Create and switch to a feature branch
-glit checkout -b feature-login
+glit checkout -b feature_login
 
 # Add new functionality
 echo "Login logic goes here" > Login.java
@@ -173,7 +173,7 @@ glit log
 glit checkout main
 
 # Merge feature branch
-glit merge feature-login
+glit merge feature_login
 
 # Verify repository state
 glit status
