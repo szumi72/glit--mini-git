@@ -10,17 +10,41 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
-
 import glit.service.Repository;
 
+/**
+ * <p>The central controller and command router for the Glit Version Control System CLI.</p>
+ *
+ * <p>This class serves as the main entry point of the application. It captures command-line
+ * arguments, executes strict structural and state validations, expands file system wildcards,
+ * maps the inputs into executable {@link Call} contexts, and dispatches them to the underlying
+ * {@link Repository} service layer.</p>
+ */
 public class GlitController {
+
+    /**
+     * The resolved root path of the active Glit repository.
+     */
     private final static Path repositoryPath = Repository.whereIsRepo();
-    
+
+    /**
+     * <p>Expands shell-like wildcard/glob patterns into a list of concrete file paths.</p>
+     *
+     * <p>This method normalizes shorthand patterns and performs file system traversal:</p>
+     * <ul>
+     * <li>Transforms current directory shortcuts ({@code .} or {@code ./}) into a recursive wildcard ({@code **}).</li>
+     * <li>Appends a recursive wildcard ({@code /**}) if the provided pattern points directly to an existing directory.</li>
+     * <li>Walks the file tree from the current working directory, filtering out non-regular files and matching them against the glob engine.</li>
+     * <li>Resolves all discovered paths relative to the repository root.</li>
+     * </ul>
+     *
+     * @param pattern the glob/wildcard pattern string provided by the user (e.g., "*.txt", "src/")
+     * @return a {@link List} of {@link Path} objects matching the pattern, relative to the repository root
+     * @throws IOException if an error occurs during file system walking or path resolution
+     */
     public static List<Path> expandWildcard(String pattern) throws IOException {
         Path dir = Path.of(System.getProperty("user.dir"));
-        // System.out.println(dir + " " + pattern);
         Path diffPath = repositoryPath.relativize(dir);
-        // System.out.println(Path.of(System.getProperty("user.dir")));
         List<Path> result = new ArrayList<>();
 
         if (pattern.equals(".") || pattern.equals("./")) {
@@ -48,7 +72,26 @@ public class GlitController {
 
         return result;
     }
-    
+
+    /**
+     * <p>Validates and parses raw command-line arguments into a structured execution token.</p>
+     *
+     * <p>The parsing process enforces several stateful and syntactic constraints:</p>
+     * <ul>
+     * <li>Ensures a command function name is explicitly requested.</li>
+     * <li>Blocks all operations (except {@code init}) if no valid {@code .glit} repository context exists.</li>
+     * <li>Evaluates argument structures individually per command ({@code init}, {@code add}, {@code commit}, {@code checkout}, {@code merge}, {@code cat-file}, {@code status}, {@code log}, {@code branch}).</li>
+     * <li>Handles flag abstractions (e.g., verifying {@code -m} for commits or {@code -b} for branch creations).</li>
+     * <li>Performs automatic sanitation, such as replacing spaces with underscores in new branch names.</li>
+     * </ul>
+     *
+     * <p>If any validation checks fail, descriptive usage context is printed to standard output,
+     * and the routine aborts gracefully by returning {@code null}.</p>
+     *
+     * @param args the raw array of command-line arguments passed from the application entry point
+     * @return a fully populated {@link Call} object ready for execution dispatch, or {@code null} if validation fails
+     * @throws IOException if an error occurs during wildcard resolution or repository configuration queries
+     */
     public static Call validateAndParseCommandLineArgs(String[] args) throws IOException {
         if (args.length < 1) {
             String s = """
@@ -60,7 +103,6 @@ public class GlitController {
             return null;
         }
 
-        
         int INDEX_OF_FUNCTION = 0;
 
         // no repo
@@ -69,15 +111,12 @@ public class GlitController {
             return null;
         }
 
-
-
         String functionName = args[INDEX_OF_FUNCTION];
         List<String> flags = new ArrayList<>();
         List<Object> arguments = new ArrayList<>();
 
         switch (functionName) {
             case "init" -> {
-                // unnecessary arguments
                 if (args.length > INDEX_OF_FUNCTION + 1) {
                     System.out.println("Unnecessary arguments. \nUsage: glit init");
                     return null;
@@ -86,22 +125,17 @@ public class GlitController {
             }
 
             case "add" -> {
-                
-                // no arguments
                 if (args.length <= INDEX_OF_FUNCTION + 1) {
                     System.out.println("File name not given. \nUsage: glit add <file1> [file2] ...");
                     return null;
                 }
                 for (int i = INDEX_OF_FUNCTION + 1; i < args.length; i++) {
-                    // flag 
                     if (args[i].contains("-")) {
                         System.out.println("glit add doesn't have flag " + args[i]);
                         return null;
                     }
-                    // file or files with wildcards not exists
                     Path file = Path.of(args[i]);
                     if (Files.isDirectory(file, LinkOption.NOFOLLOW_LINKS) || !Files.exists(file)) {
-                        // System.out.println("Expanding wildcard... ");
                         List<Path> files = expandWildcard(args[i]);
                         if (files == null || files.size() < 1) {
                             System.out.println("Cannot find file " + args[i]);
@@ -110,7 +144,6 @@ public class GlitController {
                             arguments.addAll(files);
                         }
                     } else {
-                        // arguments.add(file);
                         arguments.add(repositoryPath.relativize(file.toAbsolutePath()));
                     }
                 }
@@ -118,24 +151,20 @@ public class GlitController {
             }
             case "commit" -> {
                 String usageMessage = "Usage: glit commit -m <your_commit_name>";
-                // message
                 if (args.length <= INDEX_OF_FUNCTION + 2) {
                     System.out.println("Commit name not given. \n" + usageMessage);
                     return null;
                 }
-                // -m flag
                 if (!args[INDEX_OF_FUNCTION + 1].equals("-m")) {
                     System.out.println("Commit -m option is required. \n" + usageMessage);
                     return null;
                 } else {
                     flags.add("m");
                 }
-                // longer name
                 String message = args[INDEX_OF_FUNCTION + 2];
                 if (args.length > INDEX_OF_FUNCTION + 3) {
                     message += " " + String.join(" ", Arrays.copyOfRange(args, INDEX_OF_FUNCTION + 3, args.length));
                 }
-                // weird flag
                 if (args[INDEX_OF_FUNCTION + 2].startsWith("-")) {
                     System.out.println("glit commit doesn't have flag " + args[INDEX_OF_FUNCTION + 2] + "\n" + usageMessage);
                     return null;
@@ -153,7 +182,6 @@ public class GlitController {
                     Usage: glit checkout <branch_name>
                     For creating new branch use: glit checkout -b <new_branch_name>""";
 
-                // unnecessary arguments
                 if (args.length <= INDEX_OF_FUNCTION + 1) {
                     System.out.println("Wrong number of arguments. \n" + usageMessage);
                     return null;
@@ -164,14 +192,11 @@ public class GlitController {
                     return null;
                 }
 
-                // currently used branch
                 String branchName = creatingNewBranch ? args[INDEX_OF_FUNCTION + 2] : args[INDEX_OF_FUNCTION + 1];
                 if (branchName.equals(currBranchName)) {
-    //                if (branchName.equals("main")) {
                     System.out.println("Branch " + branchName + " is currently being used");
                     return null;
                 }
-                // name in system
                 if (!creatingNewBranch && !allBranches.contains(branchName)) {
                     System.out.println("Branch \"" + branchName + "\" not found. Available branches:"+allBranches);
                     System.out.println("--");
@@ -200,19 +225,15 @@ public class GlitController {
                 List<String> allBranches = Repository.getAllBranches();
                 Path branchesPath = repositoryPath.resolve(Path.of(".glit/refs/heads"));
                 Path currBranchPath = repositoryPath.resolve(Path.of(".glit/refs/heads")).resolve(currBranchName);
-                // number of arguments
                 if (args.length != INDEX_OF_FUNCTION + 2) {
                     System.out.println("Wrong arguments. \nUsage: glit merge <branch_to_be_merged_with_your_current>");
                     return null;
                 }
-                // branch currently in use
                 String branchName = args[INDEX_OF_FUNCTION + 1];
-                 if (branchName.equals(currBranchName)) {
-//                if (branchName.equals("main")) {
+                if (branchName.equals(currBranchName)) {
                     System.out.println("Cannot merge from branch " + branchName + " - it is currently in use.");
                     return null;
                 }
-                // name in system
                 if (!allBranches.contains(branchName)) {
                     System.out.println("Branch \"" + branchName + "\" not found. Available branches:");
                     Repository.printAllBranches(branchesPath, currBranchPath);
@@ -226,7 +247,6 @@ public class GlitController {
                     System.out.println("Hash not given. \nUsage: glit cat-file <hash>");
                     return null;
                 }
-                //arguments
                 arguments.add(args[INDEX_OF_FUNCTION + 1]);
                 return new Call(functionName,null,arguments);
             }
@@ -252,55 +272,51 @@ public class GlitController {
         }
     }
 
+    /**
+     * <p>The main application runtime sequence.</p>
+     *
+     * <p>Triggers string parsing validation, handles safe failure exit boundaries,
+     * and maps valid operation keys to concrete execution commands inside the
+     * {@link Repository} logic block.</p>
+     *
+     * @param args command-line arguments provided at startup
+     * @throws Exception if a low-level error occurs during backend routine executions
+     */
     public static void main(String[] args) throws Exception {
         Call cliCall = validateAndParseCommandLineArgs(args);
         if (cliCall == null) {
             return;
         }
 
-//        System.out.println(cliCall);
-        // call proper method
         try{
-        switch (cliCall.getFunction()) {
-            case "init" -> {
-//                System.out.println("executing init... \n");
-                Repository.init();
-            }
-            case "add" -> {
-//                System.out.println("executing add... \n");
-                Repository.add(cliCall);
-            }
-            case "commit" -> {
-//                System.out.println("executing commit... \n");
-                Repository.commit(cliCall);
-            }
-            case "checkout" -> {
-//                System.out.println("checkout executed");
-                Repository.checkout(cliCall);
-            }
-            case "merge" -> {
-//                System.out.println("merge executed");
-                Repository.merge(cliCall);
-            }
-            case "cat-file" -> {
-//                System.out.println("cat-file executed");
-                Repository.catFile(cliCall);
-            }
-            case "status" -> {
-//                System.out.println("status executed");
-                Repository.status();
-            }
-            case "log" -> {
-//                System.out.println("log executed");
-                Repository.log();
-            }
-            case "branch" -> {
-//                System.out.println("branch executed");
-                Repository.branch(cliCall);
-            }
-        }}catch(Exception e){e.printStackTrace();throw e;}
-            
-
+            switch (cliCall.getFunction()) {
+                case "init" -> {
+                    Repository.init();
+                }
+                case "add" -> {
+                    Repository.add(cliCall);
+                }
+                case "commit" -> {
+                    Repository.commit(cliCall);
+                }
+                case "checkout" -> {
+                    Repository.checkout(cliCall);
+                }
+                case "merge" -> {
+                    Repository.merge(cliCall);
+                }
+                case "cat-file" -> {
+                    Repository.catFile(cliCall);
+                }
+                case "status" -> {
+                    Repository.status();
+                }
+                case "log" -> {
+                    Repository.log();
+                }
+                case "branch" -> {
+                    Repository.branch(cliCall);
+                }
+            }}catch(Exception e){e.printStackTrace();throw e;}
     }
 }
-
