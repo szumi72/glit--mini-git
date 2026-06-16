@@ -4,6 +4,8 @@
 
 The primary goal of Glit is educational: to demonstrate how version control systems operate internally while maintaining a clean and modular Java architecture.
 
+Documentation - https://szumi72.github.io/glit--mini-git/
+
 ---
 
 ## Features
