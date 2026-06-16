@@ -372,11 +372,21 @@ public class Repository {
             System.out.println("Nothing to commit. Add something first (glit add <file1> [file2]...)");
             return;
         }
-        List<Path> stagedFiles = IndexUtils.parse(INDEX_PATH).getEntries().stream()
-                .map(e -> Path.of(e.getPath()))
-                .toList();
-        if (stagedFiles.isEmpty()) {
-            System.out.println("Index is empty - nothing to commit. Add your changes first (glit add <file1> [file2] ...)");
+        String branchName=getCurrentBranchName();
+        System.out.println("On branch " + branchName);
+
+        Map<String,String>indexMap = mapIndexFiles(INDEX_PATH);
+        Map<String,String>wdMap = mapWorkingDirectory();
+
+        List<String> notStaged = wdMap.keySet().stream()
+                .filter(e -> indexMap.containsKey(e) && !indexMap.get(e).equals(wdMap.get(e))).toList();
+
+        if(!notStaged.isEmpty()){
+            System.err.println("Files tracked, but not staged for commit:");
+            for(String s : notStaged){
+                System.err.println(s);
+            }
+            System.err.println("  use 'glit add' to stage this changes");
             return;
         }
 
@@ -418,12 +428,11 @@ public class Repository {
             setLastCommitHash(branchRef, commit.getHash());
         }
 
-        String branchName=getCurrentBranchName();
-//        System.out.println("On branch " + branchName);
+
         System.out.println(" [" + branchName + " " + commit.getHash().substring(0,7) + "] " + message);
 
-//        index cleaning
-        try(BufferedWriter w = Files.newBufferedWriter(INDEX_PATH , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){e.printStackTrace();}
+//        index cleaning - shouldn't do it
+//        try(BufferedWriter w = Files.newBufferedWriter(INDEX_PATH , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){e.printStackTrace();}
 
     }
 
@@ -971,19 +980,41 @@ public class Repository {
         }
         String branchName = (String) cliCall.getArguments().get(0);
 
-
-        // check if there are staged files
-        try {
-            if(Files.size(INDEX_PATH)!=0){
-                System.out.println("There are staged files. Commit them first, then checkout.");
-                return;
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         Path newBranchPath = REPOSITORY_PATH.resolve(".glit/refs/heads").resolve(branchName);
         Path currBranchPath = getPathFromHead(REPOSITORY_PATH.resolve(".glit").resolve("HEAD"));
 //        System.out.println("currBranchPath = "+currBranchPath);
+
+        // check if there are tracked files changed but not commited
+        Map<String,String>indexMap = mapIndexFiles(INDEX_PATH);
+        Map<String,String>wdMap = mapWorkingDirectory();
+
+
+        List<String> notStaged = wdMap.keySet().stream()
+                .filter(e -> indexMap.containsKey(e) && !indexMap.get(e).equals(wdMap.get(e))).toList();
+
+        if(!notStaged.isEmpty()){
+            System.err.println("Files tracked, but not staged for commit:");
+            for(String s : notStaged){
+                System.err.println(s);
+            }
+            System.err.println("  use 'glit add' to stage this changes");
+            return;
+        }
+        if(currBranchPath!=null){
+            Map<String,String>headMap = mapHeadFiles(getHEADTree(getLastCommitHash(currBranchPath)),"");
+            List<String> notCommited = indexMap.keySet().stream()
+                    .filter(e -> !headMap.containsKey(e) || !headMap.get(e).equals(indexMap.get(e)))
+                    .toList();
+            headMap.keySet().stream().filter(e->!indexMap.containsKey(e)).forEach(notCommited::add);
+            if(!notCommited.isEmpty()){
+                System.err.println("Files staged, but not yet commited:");
+                for(String s : notCommited){
+                    System.err.println(s);
+                }
+                System.err.println("  use 'glit commit -m <message>' to commit this changes");
+                return;
+            }
+        }
 
 
         // restore file structure from branch's last commit
@@ -1110,11 +1141,45 @@ public class Repository {
             System.out.println("No glit repository found");
             return;
         }
+        INDEX_PATH=REPOSITORY_PATH.resolve(".glit/index");
         Path headsPath = REPOSITORY_PATH.resolve(".glit").resolve("refs").resolve("heads");
         String ourBranchName = getCurrentBranchName();
         if(ourBranchName==null){
             throw new GlitException("Couldn't get current branch name - checkout to some first.");
         }
+
+        // check if there are tracked files changed but not commited
+        Map<String,String>indexMap = mapIndexFiles(INDEX_PATH);
+        Map<String,String>wdMap = mapWorkingDirectory();
+
+
+        List<String> notStaged = wdMap.keySet().stream()
+                .filter(e -> indexMap.containsKey(e) && !indexMap.get(e).equals(wdMap.get(e))).toList();
+
+        if(!notStaged.isEmpty()){
+            System.err.println("Files tracked, but not staged for commit:");
+            for(String s : notStaged){
+                System.err.println(s);
+            }
+            System.err.println("  use 'glit add' to stage this changes");
+            return;
+        }
+        if(ourBranchName!=null){
+            Map<String,String>headMap = mapHeadFiles(getHEADTree(getLastCommitHash(REPOSITORY_PATH.resolve(".glit/refs/heads").resolve(ourBranchName))),"");
+            List<String> notCommited = indexMap.keySet().stream()
+                    .filter(e -> !headMap.containsKey(e) || !headMap.get(e).equals(indexMap.get(e)))
+                    .toList();
+            headMap.keySet().stream().filter(e->!indexMap.containsKey(e)).forEach(notCommited::add);
+            if(!notCommited.isEmpty()){
+                System.err.println("Files staged, but not yet commited:");
+                for(String s : notCommited){
+                    System.err.println(s);
+                }
+                System.err.println("  use 'glit commit -m <message>' to commit this changes");
+                return;
+            }
+        }
+
         String ourCommitHash = getLastCommitHash(headsPath.resolve(ourBranchName));
         String theirBranchName = (String) cliCall.getArguments().get(0);
         String theirCommitHash = getLastCommitHash(headsPath.resolve(theirBranchName));
@@ -1144,8 +1209,8 @@ public class Repository {
         ObjectWriter writer = new ObjectWriter(REPOSITORY_PATH);
         writer.saveObject(mergedCommit);
         setLastCommitHash(headsPath.resolve(ourBranchName), mergedCommit.getHash());
-        //clear index
-        try(BufferedWriter w = Files.newBufferedWriter(REPOSITORY_PATH.resolve(".glit").resolve("index") , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){e.printStackTrace();}
+        //clear index - it should not do it
+//        try(BufferedWriter w = Files.newBufferedWriter(REPOSITORY_PATH.resolve(".glit").resolve("index") , StandardOpenOption.TRUNCATE_EXISTING)){}catch(Exception e){e.printStackTrace();}
         System.out.println("Merged succesfully");
     }
 
