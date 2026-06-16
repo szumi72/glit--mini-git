@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"glit.cli"},{"l":"glit.exceptions"},{"l":"glit.merge"},{"l":"glit.model"},{"l":"glit.service"},{"l":"glit.storage"},{"l":"glit.util"}];updateSearchResults();
