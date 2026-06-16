@@ -36,23 +36,34 @@ import glit.util.HashUtils;
 import glit.util.IndexUtils;
 
 /**
- * Klasa odpowiedzialna za zarządzanie repozytorium Glit. Zawiera metody do
- * inicjalizacji i lokalizacji repozytorium.
+ * <p>Core class responsible for managing the Glit repository.</p>
+ *
+ * <p>Provides functionality to initialize a new repository, locate an existing one
+ * within the directory tree, and perform basic path and file state evaluations.</p>
  */
 public class Repository {
 
+    /**
+     * <p>A cached list of ignore patterns loaded from the {@code .glitignore} file.</p>
+     */
     private static final List<String> ignorePatterns = new ArrayList<>();
     /**
-     * Ścieżka do katalogu głównego repozytorium.
+     * <p>The absolute path to the root directory of the current repository.</p>
      */
     public static Path REPOSITORY_PATH;
+
+    /**
+     * <p>The path to the {@code .glit/index} file, representing the staging area.</p>
+     */
     public static Path INDEX_PATH;
 
     /**
-     * Znajduje ścieżkę do najbliższego repozytorium Glit, przeszukując w górę
-     * drzewa katalogów.
+     * <p>Locates the root path of the closest Glit repository.</p>
      *
-     * @return ścieżka do repozytorium lub null, jeśli nie znaleziono
+     * <p>This method traverses upwards from the current working directory, searching
+     * for a directory that contains the hidden {@code .glit} folder.</p>
+     *
+     * @return the {@link Path} to the repository root directory, or {@code null} if no repository is found
      */
     public static Path whereIsRepo() {
         Path current = Path.of(System.getProperty("user.dir"));
@@ -66,10 +77,14 @@ public class Repository {
     }
 
     /**
-     * Inicjalizuje nowe repozytorium Glit w bieżącym katalogu. Tworzy niezbędne
-     * katalogi i pliki.
+     * <p>Initializes a new, empty Glit repository in the current working directory.</p>
      *
-     * @throws IOException jeśli nie można utworzyć katalogów lub plików
+     * <p>Creates the mandatory internal directory structure (e.g., {@code objects}, {@code refs}),
+     * default files (e.g., {@code HEAD}, {@code config}), the binary index file, and a default
+     * {@code .glitignore} file. If a repository already exists in the current or parent directories,
+     * the initialization is aborted to prevent overwriting.</p>
+     *
+     * @throws IOException if an I/O error occurs while creating directories or files
      */
     public static void init() throws IOException {
         REPOSITORY_PATH = whereIsRepo();
@@ -475,15 +490,13 @@ public class Repository {
 
     /**
      * Checks and displays the current state of the repository (equivalent to 'git status').
-     * <p>
-     * This method informs the user about:
+     * * <p>This method informs the user about:</p>
      * <ul>
      * <li>The current active branch (or detached HEAD state)</li>
      * <li>Changes staged for commit (Changes to be committed)</li>
      * <li>Changes tracked but modified locally (Changes not staged for commit)</li>
      * <li>Untracked files in the working directory</li>
      * </ul>
-     * </p>
      */
      public static void status() {
 
@@ -847,15 +860,14 @@ public class Repository {
 
     /**
      * Handles branch management operations (equivalent to 'git branch').
-     * <p>
-     * Operates in two distinct modes depending on provided arguments:
+     *
+     * <p>Operates in two distinct modes depending on provided arguments:</p>
      * <ol>
      * <li><b>No arguments:</b> Scans and lists all existing branch reference files in refs/heads,
      * highlighting the currently active branch with a leading "*" symbol.</li>
      * <li><b>One argument:</b> Creates a new branch reference file pointing to the current commit,
      * ensuring first that a branch with the requested name does not already exist.</li>
      * </ol>
-     * </p>
      *
      * @param cliCall the object containing parsed command-line arguments
      */
@@ -965,11 +977,25 @@ public class Repository {
     }
 
     /**
-     * with -b parameter creates new branch and checkouts to it
-     * otherwise checkouts to already existing branch and restores file structure
-     * !!! avoid names with slash (for now)
-     * @param cliCall
-     * @throws IOException
+     * Switches branches or restores working tree files (equivalent to 'git checkout').
+     *
+     * <p>If the {@code -b} flag is provided in the command line call, this method first
+     * creates a new branch and then switches to it. Otherwise, it switches to an
+     * already existing branch and updates the working directory to match the target
+     * branch's latest commit.</p>
+     *
+     * <p>Before performing the checkout, the method enforces strict state validations
+     * to prevent accidental data loss. The operation will be aborted if:</p>
+     * <ul>
+     * <li>There are tracked files with unstaged modifications in the working directory.</li>
+     * <li>There are files staged in the index that have not yet been committed.</li>
+     * </ul>
+     *
+     * <p><b>Note:</b> Branch names containing slashes (e.g., {@code feature/login})
+     * are currently not supported and should be avoided.</p>
+     *
+     * @param cliCall the object containing parsed command-line arguments and flags
+     * @throws IOException if an I/O error occurs while reading repository paths, comparing file states, or updating the HEAD reference
      */
     public static void checkout(Call cliCall) throws IOException {
         REPOSITORY_PATH = whereIsRepo();
